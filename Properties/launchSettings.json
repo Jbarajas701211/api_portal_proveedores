@@ -1,0 +1,25 @@
+{
+  "profiles": {
+    "ApiLogisticaRunner": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:53871;http://localhost:53872",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "PROVEEDORES_API_CORE_DB_HOST": "172.17.206.16",
+        "PROVEEDORES_API_CORE_DB_PORT": "5432",
+        "PROVEEDORES_API_CORE_DB_NAME": "PORTAL_PROVEEDORES",
+        "PROVEEDORES_API_CORE_DB_USER": "sa_desarrollo_logistica",
+        "PROVEEDORES_API_CORE_DB_PASSWORD": ".{JZ$*1[=M>A1{3a",
+        "CITAS_API_CORE_JWT_SECRET_KEY": "0c2aA1b3C4d5E6f7G8h9I0j1K2l3M4n5",
+        "CITAS_API_CORE_PNJ_COLA": "citas-pnj-topic",
+        "CITAS_API_CORE_DATA_PROCESSING_COLA": "citas-data-processing-topic",
+        "CITAS_API_CORE_DATA_REPORTING_COLA": "citas-reporting-data-topic",
+        "CITAS_API_CORE_LLAVE_CIFRADO": "projects/marti-deportes-desarrollo/locations/us-central1/keyRings/CITAS_LLAVERO/cryptoKeys/CITAS_API_LLAVE_CIFRADO",
+        "GOOGLE_APPLICATION_CREDENTIALS": "/opt/01.marti/06.google.credentials/citas-marti-deportes-desarrollo-f4e8efa626a5.json",
+        "GOOGLE_CLOUD_PROJECT": "marti-deportes-desarrollo",
+        "PORTAL_CITAS_URL": "https://localhost:3000"
+      }
+    }
+  }
+}
