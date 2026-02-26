@@ -1,4 +1,4 @@
-
+Ôªø
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ApiProveedores.Models;
@@ -153,19 +153,19 @@ public class AuthService
         if (DateTime.TryParse(fechaStr, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var fechaExpiracion))
         {
             if (DateTime.UtcNow > fechaExpiracion)
-                throw new FirmaCuentaException("Firma de autorizaciÛn caducada.");
+                throw new FirmaCuentaException("Firma de autorizaci√≥n caducada.");
 
             var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.CorreoElectronico == correo);
             if (!correo.Equals(user.CorreoElectronico, StringComparison.OrdinalIgnoreCase))
-                throw new FirmaCuentaException("Firma de autorizaciÛn no encontrada.");
+                throw new FirmaCuentaException("Firma de autorizaci√≥n no encontrada.");
 
             //if (!codigo.Equals(user.CodigoAutorizacion, StringComparison.OrdinalIgnoreCase))
-            //    throw new FirmaCuentaException("Firma de autorizaciÛn no encontrada.");
+            //    throw new FirmaCuentaException("Firma de autorizaci√≥n no encontrada.");
 
             return user;
         }
 
-        throw new FirmaCuentaException("Firma de autorizaciÛn incorrecta.");
+        throw new FirmaCuentaException("Firma de autorizaci√≥n incorrecta.");
     }
 
     public async Task ActivacionDeCuenta(string sing, string code, string password, string confirmacionPassword)
@@ -173,10 +173,10 @@ public class AuthService
         var usuario = await ValidacionFirma(sing);
 
         //if (!code.Equals(usuario.CodigoAutorizacion, StringComparison.OrdinalIgnoreCase))
-        //    throw new FirmaCuentaException("CÛdigo de autorizaciÛn inv·lido.");
+        //    throw new FirmaCuentaException("C√≥digo de autorizaci√≥n inv√°lido.");
 
         if (!confirmacionPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
-            throw new DesbloqueoCuentaException("Password y confirmaciÛn de password son diferentes.");
+            throw new DesbloqueoCuentaException("Password y confirmaci√≥n de password son diferentes.");
 
         usuario.Password = PasswordHasher.Hashear(password);
         //usuario.CodigoAutorizacion = null;
@@ -213,10 +213,10 @@ public class AuthService
         }
 
         if (!confirmacionPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
-            throw new DesbloqueoCuentaException("Password y confirmaciÛn de password son diferentes.");
+            throw new DesbloqueoCuentaException("Password y confirmaci√≥n de password son diferentes.");
 
         //if (!code.Equals(usuario.CodigoAutorizacion, StringComparison.OrdinalIgnoreCase))
-        //    throw new DesbloqueoCuentaException("CÛdigo de autorizaciÛn inv·lido.");
+        //    throw new DesbloqueoCuentaException("C√≥digo de autorizaci√≥n inv√°lido.");
 
         usuario.Password = PasswordHasher.Hashear(password);
         //usuario.CodigoAutorizacion = null;
@@ -275,7 +275,7 @@ public class AuthService
 
         if (BCrypt.Net.BCrypt.Verify(password, user.Password))
         {
-            await _helperTraceService.SaveTraceUsuarios(user.IdUsuario, EventoUsuario.InicioSesion, "Inicio de sesiÛn EXITOSO.");
+            await _helperTraceService.SaveTraceUsuarios(user.IdUsuario, EventoUsuario.InicioSesion, "Inicio de sesi√≥n EXITOSO.");
             //user.IntentosFallidos = 0;
             await _context.SaveChangesAsync();
             return user;

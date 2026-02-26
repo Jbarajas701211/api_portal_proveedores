@@ -123,54 +123,18 @@ builder.Services.AddScoped<HelperTraceService>();
 builder.Services.AddScoped<ProveedoresService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<NotificacionesService>();
-builder.Services.AddScoped<CapacidadService>();
-builder.Services.AddScoped<ActualizaResumenService>();
-builder.Services.AddScoped<OrdenService>();
 builder.Services.AddScoped<DiaNoLaborableService>();
-builder.Services.AddScoped<TiendaService>();
-builder.Services.AddScoped<CentroDistribucionService>();
 builder.Services.AddScoped<ParametroSistemaService>();
-builder.Services.AddScoped<EntregaService>();
-builder.Services.AddScoped<IncidenciaService>();
-builder.Services.AddScoped<DetalleOrdenService>();
-builder.Services.AddScoped<OrigenCapacidadService>();
-builder.Services.AddScoped<HelperOrdenService>();
-builder.Services.AddScoped<HelperCita>();
 
 
 // Validaciones
-builder.Services.AddScoped<RegistroCitaValidator>();
-builder.Services.AddScoped<EliminarCitaValidator>();
-builder.Services.AddScoped<ActualizarDatosTransportistaCitaValidator>();
-builder.Services.AddScoped<RegistroDetalleCitaValidator>();
-builder.Services.AddScoped<ActualizarDetalleCitaValidator>(); 
-builder.Services.AddScoped<GenerarFolioCitaValidator>();
-builder.Services.AddScoped<SolicitarAutorizacionValidator>();
-builder.Services.AddScoped<AutorizarDenegarValidator>();
-builder.Services.AddScoped<EntregaValidator>();
-builder.Services.AddScoped<IncidenciaValidator>();
-builder.Services.AddScoped<IncidenciaMasivaValidator>();
-builder.Services.AddScoped<IncidenciaSolicitaUrlValidator>();
-builder.Services.AddScoped<ActualizarDatosCitaValidator>();
-builder.Services.AddScoped<EliminarDetalleCitaValidator>();
-builder.Services.AddScoped<CancelacionValidator>();
-
-
-
-// Servicios relacionados con la cita.
-builder.Services.AddScoped<CitaService>();
-builder.Services.AddScoped<DetalleCitaService>();
-builder.Services.AddScoped<DatosTransportistaService>();
-builder.Services.AddScoped<CantidadesTeoricasService>();
 
 
 // kpis
-builder.Services.AddScoped<KpiProveedoresService>(); 
 
 // Reporteria
 builder.Services.AddSingleton<GenericPubSubPublisher>();
 builder.Services.AddScoped<ReporteResumenOrdenesService>();
-builder.Services.AddScoped<ReporteDetalleOrdenService>();
 
 
 builder.Services.AddControllers(options =>

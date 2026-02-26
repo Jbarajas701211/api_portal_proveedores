@@ -34,7 +34,7 @@ namespace ApiProveedores.Services
                 throw new ParametroSistemaException("La clave del parámetro es inválida.");
 
             parametro.Valor = nuevoValor;
-            parametro.ActualizadoEn = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            parametro.Modificacion = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ParametrosSistema.Update(parametro);
             await _context.SaveChangesAsync();
@@ -56,25 +56,22 @@ namespace ApiProveedores.Services
 
         public async Task RegistrarParametroAsync(ParametroSistemaDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.Clave))
+            if (dto.IdParametro <= 0)
                 throw new ParametroSistemaException("El parámetro debe de incluir una clave (con formato en mayusculas).");
 
             if (string.IsNullOrWhiteSpace(dto.Valor))
                 throw new ParametroSistemaException("El parámetro debe de incluir un valor.");
 
-            if (!ParametrosSistemaHelper.EsClaveValida(dto.Clave))
-                throw new ParametroSistemaException("La clave del parámetro solo puede contener letras mayúsculas y guiones bajos (_).");
-
-            var existe = await _context.ParametrosSistema.AnyAsync(p => p.Clave == dto.Clave);
+            var existe = await _context.ParametrosSistema.AnyAsync(p => p.IdParametro == dto.IdParametro);
             if (existe)
                 throw new ParametroSistemaException("El parámetro ya existe con la misma clave.");
 
             var parametro = new ParametroSistema
             {
-                Clave = dto.Clave,
+                IdParametro = dto.IdParametro,
                 Valor = dto.Valor.ToUpper(),
                 Descripcion = dto.Descripcion,
-                ActualizadoEn = TimeHelper.NowMexicoUnspecified()
+                Modificacion = TimeHelper.NowMexicoUnspecified()
             };
 
             await _context.ParametrosSistema.AddAsync(parametro);
@@ -89,7 +86,7 @@ namespace ApiProveedores.Services
 
             return new ParametroSistemaDto
             {
-                Clave = parametro.Clave,
+                IdParametro = parametro.IdParametro,
                 Valor = parametro.Valor,
                 Descripcion = parametro.Descripcion
             };
@@ -97,13 +94,13 @@ namespace ApiProveedores.Services
 
         public async Task<bool> ActualizarParametroAsync(ParametroSistemaDto dto)
         {
-            var parametro = await _context.ParametrosSistema.FindAsync(dto.Clave);
+            var parametro = await _context.ParametrosSistema.FindAsync(dto.IdParametro);
             if (parametro == null)
                 return false;
 
             parametro.Valor = dto.Valor;
             parametro.Descripcion = dto.Descripcion;
-            parametro.ActualizadoEn = TimeHelper.NowMexicoUnspecified();
+            parametro.Modificacion = TimeHelper.NowMexicoUnspecified();
 
             _context.ParametrosSistema.Update(parametro);
             await _context.SaveChangesAsync();
@@ -121,19 +118,19 @@ namespace ApiProveedores.Services
             if (!string.IsNullOrWhiteSpace(filtro))
             {
                 query = query.Where(p =>
-                    EF.Functions.ILike(p.Clave, $"%{filtro}%") ||
+                    EF.Functions.ILike(p.IdParametro.ToString(), $"%{filtro}%") ||
                     EF.Functions.ILike(p.Descripcion, $"%{filtro}%"));
             }
 
             var total = await query.CountAsync();
             var totalPaginas = (int)Math.Ceiling((double)total / tamanioPagina);
             var parametros = await query
-                .OrderBy(p => p.Clave)
+                .OrderBy(p => p.IdParametro)
                 .Skip((pagina - 1) * tamanioPagina)
                 .Take(tamanioPagina)
                 .Select(p => new ParametroSistemaDto
                 {
-                    Clave = p.Clave,
+                    IdParametro = p.IdParametro,
                     Valor = p.Valor,
                     Descripcion = p.Descripcion,
                 })

@@ -20,6 +20,8 @@ public class Usuario
         public ICollection<TraceUsuario> TraceUsuarios { get; set; } = new List<TraceUsuario>();
     public ICollection<UsuarioEmpresa> UsuarioEmpresas { get; set; } = new List<UsuarioEmpresa>();
 
+    public ICollection<RefreshToken> RefreshTokens { get; set; }
+
     //public long? ProveedorId { get; set; }
     //public string Rol { get; set; }
     //public string CodigoAutorizacion { get; set; }

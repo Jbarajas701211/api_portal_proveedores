@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System;
 using ApiProveedores.Dto.Auth;
 using System.Collections.Generic;
+using System.Linq;
 using ApiProveedores.Helper;
 
 namespace ApiProveedores.Services
@@ -30,13 +31,15 @@ namespace ApiProveedores.Services
 
         public string GenerarJwt(Usuario usuario)
         {
+            var roleClaim = usuario.UsuarioRoles?.Select(ur => ur.Rol?.Descripcion).FirstOrDefault() ?? "ANONIMO";
+
             var claims = new List<Claim>
-{
+            {
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.IdUsuario.ToString()),
                 new Claim(JwtRegisteredClaimNames.Name, usuario.CorreoElectronico),
                 new Claim(ClaimTypes.Name, usuario.CorreoElectronico),
                 new Claim(ClaimTypes.GivenName, usuario.Nombre ?? ""),
-                new Claim(ClaimTypes.Role, "ANONIMO"),
+                new Claim(ClaimTypes.Role, roleClaim),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 
