@@ -29,25 +29,44 @@ namespace ApiProveedores.Services
             _config = config;
         }
 
-        public string GenerarJwt(Usuario usuario)
+        public async Task<string> GenerarJwt(Usuario usuario)
         {
             var roleClaim = usuario.UsuarioRoles?.Select(ur => ur.Rol?.Descripcion).FirstOrDefault() ?? "ANONIMO";
+            var roles = usuario.UsuarioRoles?
+                .Select(ur => ur.Rol?.Descripcion)
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .Distinct()
+                .ToList() ?? new List<string> { "ANONIMO" };
 
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.IdUsuario.ToString()),
-                new Claim(JwtRegisteredClaimNames.Name, usuario.CorreoElectronico),
                 new Claim(ClaimTypes.Name, usuario.CorreoElectronico),
                 new Claim(ClaimTypes.GivenName, usuario.Nombre ?? ""),
-                new Claim(ClaimTypes.Role, roleClaim),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 
-            //if (usuario.ProveedorId.HasValue) {
-            //    var proveedor = _proveedoresService.RecuperaProveedorAsync(usuario.ProveedorId.Value).GetAwaiter().GetResult();
-            //    claims.Add(new Claim(ClaimTypes.GroupSid, usuario.ProveedorId.Value.ToString()));
-            //    claims.Add(new Claim("cveprov", proveedor.ClaveProveedor));
-            //}
+            foreach(var rol in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, rol));
+            }
+
+           var proveedores = await (
+                from ue in _context.UsuarioEmpresa
+                join pe in _context.ProveedorEmpresa on ue.IdEmpresa equals pe.IdEmpresa
+                join p in _context.Proveedores on pe.IdProveedor equals p.Id_proveedor
+                where ue.IdUsuario == usuario.IdUsuario
+                select new { p.Id_proveedor, p.Nombre}
+                ).Distinct().ToListAsync();
+
+            if ( proveedores.Any())
+            {
+                foreach (var prov in proveedores)
+                {
+                    claims.Add(new Claim(ClaimTypes.GroupSid, prov.Id_proveedor.ToString()));
+                    claims.Add(new Claim("cveprov", prov.Nombre));
+                }
+            }
 
             var envSecret = Environment.GetEnvironmentVariable("CITAS_API_CORE_JWT_SECRET_KEY");
             if (string.IsNullOrWhiteSpace(envSecret))
@@ -101,7 +120,7 @@ namespace ApiProveedores.Services
             tokenActual.RevocadoEn = TimeHelper.NowMexicoUnspecified();
 
             // Generar nuevos tokens
-            var nuevoJwt = GenerarJwt(tokenActual.Usuario);
+            var nuevoJwt = await GenerarJwt(tokenActual.Usuario);
             var nuevoRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
             var refreshNuevo = new RefreshToken

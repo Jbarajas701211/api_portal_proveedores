@@ -11,6 +11,7 @@ using ApiProveedores.Services.Exceptions;
 using ApiProveedores.Services;
 using ApiProveedores.Dto.Http;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 [ApiController]
 [Route("api/auth")]
@@ -97,7 +98,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var user = await _authService.LoginAsync(request.Email, request.Password);
-        var token = _tokenService.GenerarJwt(user);
+        var token = await _tokenService.GenerarJwt(user);
         var refreshToken = await _tokenService.GenerarRefreshTokenAsync(user);
         var expiresAt = DateTime.UtcNow.AddDays(TokenService.REFRESH_TOKEN_DIAS_VALIDOS);
         return Ok(new LoginResponse
@@ -106,7 +107,7 @@ public class AuthController : ControllerBase
             RefreshToken = refreshToken,
             RefreshExpiresAt = expiresAt,
             Nombre = user.Nombre ?? "NO NAME",
-            Rol = "ANONIMO"
+            Rol = user.UsuarioRoles.FirstOrDefault().Rol.Descripcion ?? "ANONIMO"
         });
     }
 
