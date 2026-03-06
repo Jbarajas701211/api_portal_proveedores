@@ -25,6 +25,7 @@ namespace ApiProveedores.Models
         public string EntityId { get; set; }
 
         public ICollection<ProveedorEmpresa> ProveedorEmpresa { get; set; } = new List<ProveedorEmpresa>();
+        public ICollection<ProveedorDocumento> ProveedorDocumento { get; set; } = new List<ProveedorDocumento>();
 
     }
 

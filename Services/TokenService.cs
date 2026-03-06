@@ -1,17 +1,18 @@
+using ApiProveedores.Dto.Auth;
+using ApiProveedores.Helper;
 using ApiProveedores.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
-using System;
-using ApiProveedores.Dto.Auth;
-using System.Collections.Generic;
-using System.Linq;
-using ApiProveedores.Helper;
+using static Google.Rpc.Context.AttributeContext.Types;
 
 namespace ApiProveedores.Services
 {
@@ -21,16 +22,19 @@ namespace ApiProveedores.Services
         private readonly PortalDbContext _context;
         private readonly IConfiguration _config;
         private readonly ProveedoresService _proveedoresService;
+        private readonly AuthService _authService;
         public TokenService(PortalDbContext context, IConfiguration config, 
-            ProveedoresService proveedoresService)
+            ProveedoresService proveedoresService, AuthService authService)
         {
             _proveedoresService = proveedoresService;
             _context = context;
             _config = config;
+            _authService = authService;
         }
 
         public async Task<string> GenerarJwt(Usuario usuario)
         {
+            //var user = await _authService.LoginAsync(usuario.CorreoElectronico, usuario.Password);
             var roleClaim = usuario.UsuarioRoles?.Select(ur => ur.Rol?.Descripcion).FirstOrDefault() ?? "ANONIMO";
             var roles = usuario.UsuarioRoles?
                 .Select(ur => ur.Rol?.Descripcion)
@@ -41,14 +45,15 @@ namespace ApiProveedores.Services
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.IdUsuario.ToString()),
-                new Claim(ClaimTypes.Name, usuario.CorreoElectronico),
-                new Claim(ClaimTypes.GivenName, usuario.Nombre ?? ""),
+                new Claim("email", usuario.CorreoElectronico),
+                new Claim("name", usuario.CorreoElectronico),
+                new Claim("given_name", usuario.Nombre ?? ""),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 
             foreach(var rol in roles)
             {
-                claims.Add(new Claim(ClaimTypes.Role, rol));
+                claims.Add(new Claim("role", rol));
             }
 
            var proveedores = await (
@@ -106,20 +111,31 @@ namespace ApiProveedores.Services
 
         public async Task<(string jwt, string refreshToken)> RenovarAsync(string refreshToken)
         {
+            // Usar una sola referencia a la hora actual en UTC para evitar inconsistencias
+            var ahoraUtc = TimeHelper.UtcNow();
+
             var tokenActual = await _context.RefreshTokens
                 .Include(t => t.Usuario)
                 .FirstOrDefaultAsync(t =>
                     t.Token == refreshToken &&
                     t.RevocadoEn == null &&
-                    t.ExpiraEn > TimeHelper.NowMexicoUnspecified());
+                    t.ExpiraEn > ahoraUtc);
 
             if (tokenActual == null)
                 throw new SecurityTokenException("Refresh token inválido o expirado");
 
             // Marcar el token actual como revocado
-            tokenActual.RevocadoEn = TimeHelper.NowMexicoUnspecified();
+            tokenActual.RevocadoEn = ahoraUtc;
 
             // Generar nuevos tokens
+            if (!tokenActual.Usuario.UsuarioRoles.Any()){
+                var user = await _context.Usuarios
+                .Include(u => u.UsuarioRoles).ThenInclude(ur => ur.Rol)
+                .FirstOrDefaultAsync(u => u.CorreoElectronico == tokenActual.Usuario.CorreoElectronico);
+
+                tokenActual.Usuario.UsuarioRoles = user.UsuarioRoles;
+            }
+
             var nuevoJwt = await GenerarJwt(tokenActual.Usuario);
             var nuevoRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
@@ -127,8 +143,8 @@ namespace ApiProveedores.Services
             {
                 UsuarioId = tokenActual.Usuario.IdUsuario,
                 Token = nuevoRefresh,
-                ExpiraEn = TimeHelper.NowMexicoUnspecified().AddDays(7),
-                CreadoEn = TimeHelper.NowMexicoUnspecified(),
+                ExpiraEn = ahoraUtc.AddDays(REFRESH_TOKEN_DIAS_VALIDOS),
+                CreadoEn = ahoraUtc,
                 ReemplazadoPor = tokenActual.Token
             };
 

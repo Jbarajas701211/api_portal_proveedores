@@ -59,7 +59,10 @@ namespace ApiProveedores.Services
                 .Select(p => new ProveedorDto
                 {
                     Id = p.Id_proveedor,
-                    NombreProveedor = p.Nombre
+                    NombreProveedor = p.Nombre,
+                    ClaveProveedor = p.VendorId.ToString(),
+                    Estatus = p.Estatus,
+                    Rfc = p.Rfc
                 })
                 .ToListAsync();
 

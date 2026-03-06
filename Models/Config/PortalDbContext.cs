@@ -19,6 +19,8 @@ public class PortalDbContext : DbContext
     public DbSet<DiaNoLaborable> DiasNoLaborables { get; set; }
     public DbSet<ParametroSistema> ParametrosSistema { get; set; }
     public DbSet<ProveedorEmpresa> ProveedorEmpresa { get; set; }        // <-- navegación
+    public DbSet<Documento> Documento { get; set; }
+    public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -242,7 +244,32 @@ public class PortalDbContext : DbContext
            
         });
 
+        modelBuilder.Entity<Documento>(entity =>
+        {
+            entity.ToTable("documentos", "portal_proveedores");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id_documento");
+            entity.Property(e => e.Tipo).HasColumnName("tipo").HasMaxLength(50);
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasColumnType("text");
+        });
 
+        modelBuilder.Entity<ProveedorDocumento>(entity =>
+        {
+            entity.ToTable("proveedor_documento", "portal_proveedores");
+            entity.HasKey(e => e.IdRelacionPD);
+            entity.Property(e => e.IdRelacionPD).HasColumnName("id_relacion_pd");
+            entity.Property(e => e.IdProveedor).HasColumnName("id_proveedor");
+            entity.Property(e => e.IdDocumento).HasColumnName("id_documento");
+            entity.Property(e => e.Opcional).HasColumnName("opcional");
+            entity.HasOne(e => e.Proveedor)
+                  .WithMany(d => d.ProveedorDocumento)
+                  .HasForeignKey(e => e.IdProveedor)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Documento)
+                  .WithMany()
+                  .HasForeignKey(e => e.IdDocumento)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
 
     }
 
