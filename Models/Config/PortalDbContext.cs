@@ -256,10 +256,10 @@ public class PortalDbContext : DbContext
         modelBuilder.Entity<ProveedorDocumento>(entity =>
         {
             entity.ToTable("proveedor_documento", "portal_proveedores");
-            entity.HasKey(e => e.IdRelacionPD);
-            entity.Property(e => e.IdRelacionPD).HasColumnName("id_relacion_pd");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id_relacion_pd");
             entity.Property(e => e.IdProveedor).HasColumnName("id_proveedor");
-            entity.Property(e => e.IdDocumento).HasColumnName("id_documento");
+            entity.Property(e => e.DocumentoId).HasColumnName("id_documento");
             entity.Property(e => e.Opcional).HasColumnName("opcional");
             entity.HasOne(e => e.Proveedor)
                   .WithMany(d => d.ProveedorDocumento)
@@ -267,7 +267,7 @@ public class PortalDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Documento)
                   .WithMany()
-                  .HasForeignKey(e => e.IdDocumento)
+                  .HasForeignKey(e => e.DocumentoId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

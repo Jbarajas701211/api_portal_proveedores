@@ -32,6 +32,19 @@ namespace ApiProveedores.Services
             return proveedor;
         }
 
+        public async Task<System.Collections.Generic.List<ApiProveedores.Dto.Salida.DocumentoProveedorDto>> ObtenerDocumentosPorProveedorAsync(int idProveedor)
+        {
+            return await _context.ProveedorDocumento
+                .Include(pd => pd.Documento)
+                .Where(pd => pd.IdProveedor == idProveedor)
+                .Select(pd => new ApiProveedores.Dto.Salida.DocumentoProveedorDto
+                {
+                    Documento = pd.Documento.Descripcion,
+                    Opcional = pd.Opcional
+                })
+                .ToListAsync();
+        }
+
 
 
         public async Task<ResultadoPaginado<ProveedorDto>> BuscarProveedoresPaginadoAsync(string? filtro, int pagina, int tamanioPagina)

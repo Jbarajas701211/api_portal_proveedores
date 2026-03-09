@@ -37,5 +37,13 @@ namespace ApiProveedores.Controllers
             var resultado = await _service.RecuperaProveedorAsync(claveProveedor);
             return Ok(resultado);
         }
+
+        [Authorize]
+        [HttpGet("documentos")]
+        public async Task<IActionResult> GetDocumentosByProveedor([FromQuery] int idProveedor)
+        {
+            var resultado = await _service.ObtenerDocumentosPorProveedorAsync(idProveedor);
+            return Ok(resultado);
+        }
     }
 }
