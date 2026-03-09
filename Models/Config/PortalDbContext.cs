@@ -39,6 +39,8 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.Estatus).HasColumnName("estatus");
             entity.Property(e => e.Sobrante).HasColumnName("sobrante");
             entity.Property(e => e.PorcentajeSobrante).HasColumnName("porcentaje_sobrante");
+            entity.Property(e => e.Faltante).HasColumnName("faltante");
+            entity.Property(e => e.PorcentajeFaltante).HasColumnName("porcentaje_faltante");
             entity.Property(e => e.AplicarTolerancia).HasColumnName("aplicar_tolerancia");
             entity.Property(e => e.IdCategoria).HasColumnName("id_categoria");
             entity.Property(e => e.AcreedorSinXml).HasColumnName("acreedor_sin_xml");

@@ -75,7 +75,22 @@ namespace ApiProveedores.Services
                     NombreProveedor = p.Nombre,
                     ClaveProveedor = p.VendorId.ToString(),
                     Estatus = p.Estatus,
-                    Rfc = p.Rfc
+                    Rfc = p.Rfc,
+                    Sobrante = p.Sobrante,
+                    PorcentajeSobrante = p.PorcentajeSobrante,
+                    Faltante = p.Faltante,
+                    PorcentajeFaltante = p.PorcentajeFaltante,
+                    AplicarTolerancia = p.AplicarTolerancia,
+                    IdCategoria = p.IdCategoria,
+                    AccredorSinXml = p.AcreedorSinXml,
+                    AplicarToleranciaCategoria = p.AplicarToleranciaCategoria,
+                    Email = p.EmailProveedor,
+                    DocumentoFiscal = p.DocFiscal,
+                    Factura = p.Factura,
+                    Recepcion = p.Recepcion,
+                    Origen = p.Origen,
+                    RazonSocial = p.RazonSocial
+                    
                 })
                 .ToListAsync();
 

@@ -10,14 +10,16 @@ namespace ApiProveedores.Models
         public string Rfc { get; set; }
         public int VendorId { get; set; }
         public bool Estatus { get; set; }
-        public int Sobrante { get; set; }
-        public int PorcentajeSobrante { get; set; }
+        public decimal Sobrante { get; set; }
+        public decimal PorcentajeSobrante { get; set; }
+        public decimal Faltante { get; set; }
+        public decimal PorcentajeFaltante { get; set; }
         public bool AplicarTolerancia { get; set; }
         public int IdCategoria { get; set; }
         public bool AcreedorSinXml { get; set; }
         public bool AplicarToleranciaCategoria { get; set; }
         public string EmailProveedor { get; set; }
-        public bool DocFiscal { get; set; }
+        public string DocFiscal { get; set; }
         public bool Factura { get; set; }
         public bool Recepcion { get; set; }
         public string Origen { get; set; }

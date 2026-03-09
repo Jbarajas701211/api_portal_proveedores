@@ -9,6 +9,8 @@ namespace ApiProveedores.Dto.Entrada
         public bool Estatus { get; set; }
         public decimal Sobrante { get; set; }
         public decimal PorcentajeSobrante { get; set; }
+        public decimal Faltante { get; set; }
+        public decimal PorcentajeFaltante { get; set; }
         public bool AplicarTolerancia { get; set; }
         public int IdCategoria { get; set; }
         public bool AccredorSinXml { get; set; }
