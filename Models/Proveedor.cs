@@ -8,7 +8,7 @@ namespace ApiProveedores.Models
         public long Id_proveedor { get; set; }
         public string Nombre { get; set; }
         public string Rfc { get; set; }
-        public int VendorId { get; set; }
+        public string VendorId { get; set; }
         public bool Estatus { get; set; }
         public decimal Sobrante { get; set; }
         public decimal PorcentajeSobrante { get; set; }

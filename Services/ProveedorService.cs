@@ -1,11 +1,13 @@
 using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Dto.Paginadores;
 using ApiProveedores.Models;
+using ApiProveedores.Services.Exceptions;
 using Google.Api;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace ApiProveedores.Services
 {
@@ -32,7 +34,7 @@ namespace ApiProveedores.Services
             return proveedor;
         }
 
-        public async Task<System.Collections.Generic.List<ApiProveedores.Dto.Salida.DocumentoProveedorDto>> ObtenerDocumentosPorProveedorAsync(int idProveedor)
+        public async Task<List<ApiProveedores.Dto.Salida.DocumentoProveedorDto>> ObtenerDocumentosPorProveedorAsync(long idProveedor)
         {
             return await _context.ProveedorDocumento
                 .Include(pd => pd.Documento)
@@ -90,7 +92,7 @@ namespace ApiProveedores.Services
                     Recepcion = p.Recepcion,
                     Origen = p.Origen,
                     RazonSocial = p.RazonSocial
-                    
+
                 })
                 .ToListAsync();
 
@@ -101,6 +103,67 @@ namespace ApiProveedores.Services
                 TotalElementos = total,
                 Elementos = proveedores
             };
+        }
+
+        // Actualiza un proveedor buscando por Id exclusivamente.
+        // Devuelve true si se guardó correctamente, false si no existe el registro.
+        public async Task<bool> ActualizarProveedorAsync(ProveedorDto dto)
+        {
+            if (dto == null)
+                throw new ApiProveedoresException("Datos de proveedor inválidos.");
+
+            // Asegurarse de que venga un Id válido
+            if (dto.Id <= 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                var existente = await _context.Proveedores.FindAsync(dto.Id);
+
+                if (existente == null)
+                    return false;
+
+                // Mapear campos del DTO a la entidad (solo campos esperados)
+                existente.Nombre = dto.NombreProveedor ?? existente.Nombre;
+
+                // Ajuste: VendorId es int en el modelo, parsear a int antes de asignar
+                if (!string.IsNullOrWhiteSpace(dto.ClaveProveedor))
+                {
+                    existente.VendorId = dto.ClaveProveedor;
+                }
+
+                existente.Estatus = dto.Estatus;
+                existente.Rfc = dto.Rfc;
+                existente.Sobrante = dto.Sobrante;
+                existente.PorcentajeSobrante = dto.PorcentajeSobrante;
+                existente.Faltante = dto.Faltante;
+                existente.PorcentajeFaltante = dto.PorcentajeFaltante;
+                existente.AplicarTolerancia = dto.AplicarTolerancia;
+                existente.IdCategoria = dto.IdCategoria;
+                existente.AcreedorSinXml = dto.AccredorSinXml;
+                existente.AplicarToleranciaCategoria = dto.AplicarToleranciaCategoria;
+                existente.EmailProveedor = dto.Email;
+                existente.DocFiscal = dto.DocumentoFiscal;
+                existente.Factura = dto.Factura;
+                existente.Recepcion = dto.Recepcion;
+                existente.Origen = dto.Origen;
+                existente.RazonSocial = dto.RazonSocial;
+
+                _context.Proveedores.Update(existente);
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                throw new ApiProveedoresException("No se pudo actualizar el registro.");
+            }
+            catch (Exception)
+            {
+                throw new ApiProveedoresException("No se pudo actualizar el registro.");
+            }
         }
     }
 }

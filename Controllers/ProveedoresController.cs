@@ -1,4 +1,5 @@
 using ApiProveedores.Services;
+using ApiProveedores.Dto.Entrada;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -27,7 +28,6 @@ namespace ApiProveedores.Controllers
         {
             var resultado = await _service.BuscarProveedoresPaginadoAsync(filtro, pagina, tamanio);
             return Ok(resultado);
-
         }
 
         [Authorize]
@@ -40,10 +40,36 @@ namespace ApiProveedores.Controllers
 
         [Authorize]
         [HttpGet("documentos")]
-        public async Task<IActionResult> GetDocumentosByProveedor([FromQuery] int idProveedor)
+        public async Task<IActionResult> GetDocumentosByProveedor([FromQuery] long idProveedor)
         {
             var resultado = await _service.ObtenerDocumentosPorProveedorAsync(idProveedor);
             return Ok(resultado);
+        }
+
+        [Authorize]
+        [HttpPut]
+        public async Task<IActionResult> UpdateProveedor([FromBody] ProveedorDto proveedorDto)
+        {
+            if (proveedorDto == null)
+                return BadRequest(new { mensaje = "Datos inválidos." });
+
+            try
+            {
+                var actualizado = await _service.ActualizarProveedorAsync(proveedorDto);
+
+                if (actualizado)
+                    return Ok(new { mensaje = "Proveedor actualizado correctamente." });
+
+                return BadRequest(new { mensaje = "No se pudo actualizar el registro." });
+            }
+            catch (ApiProveedores.Services.Exceptions.ApiProveedoresException appEx)
+            {
+                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo actualizar el registro." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { mensaje = "No se pudo actualizar el registro." });
+            }
         }
     }
 }
