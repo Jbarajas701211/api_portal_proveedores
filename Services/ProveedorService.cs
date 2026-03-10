@@ -141,7 +141,7 @@ namespace ApiProveedores.Services
                 existente.Faltante = dto.Faltante;
                 existente.PorcentajeFaltante = dto.PorcentajeFaltante;
                 existente.AplicarTolerancia = dto.AplicarTolerancia;
-                existente.IdCategoria = dto.IdCategoria;
+                existente.IdCategoria = dto.IdCategoria == 0 ? 1 : dto.IdCategoria;
                 existente.AcreedorSinXml = dto.AccredorSinXml;
                 existente.AplicarToleranciaCategoria = dto.AplicarToleranciaCategoria;
                 existente.EmailProveedor = dto.Email;
