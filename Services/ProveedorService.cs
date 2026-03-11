@@ -47,7 +47,7 @@ namespace ApiProveedores.Services
                 .ToListAsync();
         }
 
-
+      
 
         public async Task<ResultadoPaginado<ProveedorDto>> BuscarProveedoresPaginadoAsync(string? filtro, int pagina, int tamanioPagina)
         {
@@ -163,6 +163,252 @@ namespace ApiProveedores.Services
             catch (Exception)
             {
                 throw new ApiProveedoresException("No se pudo actualizar el registro.");
+            }
+        }
+
+        // Agregar una relación Proveedor - Documento
+        public async Task<bool> AgregarDocumentoProveedorAsync(ProveedorDocumentoDto dto)
+        {
+            if (dto == null)
+                throw new ApiProveedoresException("Datos inválidos.");
+
+            var proveedor = await _context.Proveedores.FindAsync(dto.IdProveedor);
+            if (proveedor == null)
+                return false; // proveedor no existe
+
+            var documento = await _context.Documento.FindAsync(dto.DocumentoId);
+            if (documento == null)
+                return false; // documento no existe
+
+            var existe = await _context.ProveedorDocumento.AnyAsync(pd => pd.IdProveedor == dto.IdProveedor && pd.DocumentoId == dto.DocumentoId);
+            if (existe)
+                return false; // ya existe la relación
+
+            var relacion = new ApiProveedores.Models.ProveedorDocumento
+            {
+                IdProveedor = dto.IdProveedor,
+                DocumentoId = dto.DocumentoId,
+                Opcional = dto.Opcional
+            };
+
+            try
+            {
+                _context.ProveedorDocumento.Add(relacion);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                throw new ApiProveedoresException("No se pudo agregar el documento al proveedor.");
+            }
+            catch (Exception)
+            {
+                throw new ApiProveedoresException("No se pudo agregar el documento al proveedor.");
+            }
+        }
+
+        // Eliminar una relación Proveedor - Documento
+        public async Task<bool> EliminarDocumentoProveedorAsync(long idProveedor, int documentoId)
+        {
+            var relacion = await _context.ProveedorDocumento
+                .FirstOrDefaultAsync(pd => pd.IdProveedor == idProveedor && pd.DocumentoId == documentoId);
+
+            if (relacion == null)
+                return false; // no existe la relación
+
+            try
+            {
+                _context.ProveedorDocumento.Remove(relacion);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                throw new ApiProveedoresException("No se pudo eliminar el documento del proveedor.");
+            }
+            catch (Exception)
+            {
+                throw new ApiProveedoresException("No se pudo eliminar el documento del proveedor.");
+            }
+        }
+
+
+        // Actualizar una relación Proveedor - Documento
+        public async Task<bool> ActualizarDocumentoProveedorAsync(ApiProveedores.Dto.Entrada.ProveedorDocumentoDto dto)
+        {
+            if (dto == null)
+                throw new ApiProveedoresException("Datos inválidos.");
+
+            var relacion = await _context.ProveedorDocumento
+                .FirstOrDefaultAsync(pd => pd.IdProveedor == dto.IdProveedor && pd.DocumentoId == dto.DocumentoId);
+
+            if (relacion == null)
+                return false;
+
+            relacion.Opcional = dto.Opcional;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                throw new ApiProveedoresException("No se pudo actualizar el documento del proveedor.");
+            }
+            catch (Exception)
+            {
+                throw new ApiProveedoresException("No se pudo actualizar el documento del proveedor.");
+            }
+        }
+
+        // Agregar varias relaciones Proveedor - Documento en lote
+        // Además elimina de la BD las relaciones existentes para cada proveedor que no se incluyan en la lista recibida.
+        public async Task<bool> AgregarDocumentosProveedorAsync(List<ProveedorDocumentoDto> dtos)
+        {
+            if (dtos == null || !dtos.Any())
+                throw new ApiProveedoresException("Datos inválidos.");
+
+            var proveedorIds = dtos.Select(d => d.IdProveedor).Distinct().ToList();
+            var documentoIds = dtos.Select(d => d.DocumentoId).Distinct().ToList();
+
+            // Validar existencia de proveedores y documentos referenciados
+            var proveedoresExistentes = await _context.Proveedores
+                .Where(p => proveedorIds.Contains(p.Id_proveedor))
+                .Select(p => p.Id_proveedor)
+                .ToListAsync();
+
+            var documentosExistentes = await _context.Documento
+                .Where(d => documentoIds.Contains(d.Id))
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            if (proveedoresExistentes.Count != proveedorIds.Count || documentosExistentes.Count != documentoIds.Count)
+                return false; // algún id no existe
+
+            await using var txn = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Para cada proveedor limpiar las relaciones que no vienen en la lista
+                foreach (var pid in proveedorIds)
+                {
+                    var dtosParaProveedor = dtos.Where(d => d.IdProveedor == pid).Select(d => d.DocumentoId).ToHashSet();
+
+                    var relacionesActuales = await _context.ProveedorDocumento
+                        .Where(pd => pd.IdProveedor == pid)
+                        .ToListAsync();
+
+                    // Eliminar relaciones que existen en BD pero no en la lista entrante
+                    var relacionesParaEliminar = relacionesActuales.Where(r => !dtosParaProveedor.Contains(r.DocumentoId)).ToList();
+                    if (relacionesParaEliminar.Any())
+                    {
+                        _context.ProveedorDocumento.RemoveRange(relacionesParaEliminar);
+                    }
+                }
+
+                // Cargar relaciones actuales restantes para evitar duplicados al insertar
+                var relacionesExistentes = await _context.ProveedorDocumento
+                    .Where(pd => proveedorIds.Contains(pd.IdProveedor))
+                    .Select(pd => new { pd.IdProveedor, pd.DocumentoId })
+                    .ToListAsync();
+
+                // Agregar las relaciones que no existan aún
+                foreach (var dto in dtos)
+                {
+                    var yaExiste = relacionesExistentes.Any(r => r.IdProveedor == dto.IdProveedor && r.DocumentoId == dto.DocumentoId);
+                    if (yaExiste)
+                        continue;
+
+                    var relacion = new ProveedorDocumento
+                    {
+                        IdProveedor = dto.IdProveedor,
+                        DocumentoId = dto.DocumentoId,
+                        Opcional = dto.Opcional
+                    };
+
+                    _context.ProveedorDocumento.Add(relacion);
+                }
+
+                await _context.SaveChangesAsync();
+                await txn.CommitAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                await txn.RollbackAsync();
+                throw new ApiProveedoresException("No se pudo agregar los documentos al proveedor.");
+            }
+            catch (System.Exception)
+            {
+                await txn.RollbackAsync();
+                throw new ApiProveedoresException("No se pudo agregar los documentos al proveedor.");
+            }
+        }
+
+        // Actualizar varias relaciones Proveedor - Documento en lote
+        // También elimina de la BD las relaciones existentes para cada proveedor que no se incluyan en la lista recibida.
+        public async Task<bool> ActualizarDocumentosProveedorAsync(List<ProveedorDocumentoDto> dtos)
+        {
+            if (dtos == null || !dtos.Any())
+                throw new ApiProveedoresException("Datos inválidos.");
+
+            var proveedorIds = dtos.Select(d => d.IdProveedor).Distinct().ToList();
+
+            await using var txn = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Para cada proveedor, obtener relaciones actuales y comparar
+                foreach (var pid in proveedorIds)
+                {
+                    var dtosParaProveedor = dtos.Where(d => d.IdProveedor == pid).ToList();
+                    var documentoIdsParaDto = dtosParaProveedor.Select(d => d.DocumentoId).ToHashSet();
+
+                    var relacionesActuales = await _context.ProveedorDocumento
+                        .Where(pd => pd.IdProveedor == pid)
+                        .ToListAsync();
+
+                    // Eliminar relaciones en BD que no vienen en la lista
+                    var relacionesParaEliminar = relacionesActuales.Where(r => !documentoIdsParaDto.Contains(r.DocumentoId)).ToList();
+                    if (relacionesParaEliminar.Any())
+                    {
+                        _context.ProveedorDocumento.RemoveRange(relacionesParaEliminar);
+                    }
+
+                    // Actualizar o agregar las relaciones recibidas
+                    foreach (var dto in dtosParaProveedor)
+                    {
+                        var rel = relacionesActuales.FirstOrDefault(r => r.DocumentoId == dto.DocumentoId);
+                        if (rel != null)
+                        {
+                            rel.Opcional = dto.Opcional;
+                        }
+                        else
+                        {
+                            // Si no existe, crearla
+                            var nueva = new ProveedorDocumento
+                            {
+                                IdProveedor = dto.IdProveedor,
+                                DocumentoId = dto.DocumentoId,
+                                Opcional = dto.Opcional
+                            };
+                            _context.ProveedorDocumento.Add(nueva);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await txn.CommitAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                await txn.RollbackAsync();
+                throw new ApiProveedoresException("No se pudo actualizar los documentos del proveedor.");
+            }
+            catch (System.Exception)
+            {
+                await txn.RollbackAsync();
+                throw new ApiProveedoresException("No se pudo actualizar los documentos del proveedor.");
             }
         }
     }
