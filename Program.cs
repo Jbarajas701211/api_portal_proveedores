@@ -126,6 +126,7 @@ builder.Services.AddScoped<NotificacionesService>();
 builder.Services.AddScoped<DiaNoLaborableService>();
 builder.Services.AddScoped<ParametroSistemaService>();
 builder.Services.AddScoped<CatalogoService>();
+builder.Services.AddScoped<EmpresaService>();
 
 
 // Validaciones

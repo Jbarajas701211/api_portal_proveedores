@@ -21,6 +21,7 @@ public class PortalDbContext : DbContext
     public DbSet<ProveedorEmpresa> ProveedorEmpresa { get; set; }        // <-- navegación
     public DbSet<Documento> Documento { get; set; }
     public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
+    public DbSet<Empresa> Empresa { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,7 +117,7 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.Nombre).HasColumnName("nombre");
             entity.Property(e => e.Rfc).HasColumnName("rfc");
             entity.Property(e => e.Estatus).HasColumnName("estatus");
-            entity.Property(e => e.Unidad).HasColumnName("unid_ad");
+            entity.Property(e => e.Unidad).HasColumnName("unidad");
             entity.Property(e => e.Sobrante).HasColumnName("sobrante");
             entity.Property(e => e.PorcentajeSobrante).HasColumnName("porcentaje_sobrante");
             entity.Property(e => e.Faltante).HasColumnName("faltante");
@@ -126,6 +127,11 @@ public class PortalDbContext : DbContext
             entity.HasMany(e => e.UsuarioEmpresas)
                 .WithOne(p => p.Empresa)
                 .HasForeignKey(e => e.IdEmpresa);
+
+            entity.HasMany(entity => entity.ProveedorEmpresa)
+                .WithOne(pe => pe.Empresa)
+                .HasForeignKey(pe => pe.IdEmpresa)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UsuarioEmpresa>(entity =>
@@ -272,6 +278,7 @@ public class PortalDbContext : DbContext
                   .HasForeignKey(e => e.DocumentoId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
+
 
     }
 
