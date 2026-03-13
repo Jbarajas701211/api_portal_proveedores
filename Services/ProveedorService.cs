@@ -411,5 +411,80 @@ namespace ApiProveedores.Services
                 throw new ApiProveedoresException("No se pudo actualizar los documentos del proveedor.");
             }
         }
+
+        public async Task<bool> ExisteRfcAsync(string rfc)
+        {
+            if (string.IsNullOrWhiteSpace(rfc))
+                throw new ApiProveedoresException("RFC inválido.");
+
+            try
+            {
+                var rfcNorm = rfc.Replace(" ", "").ToUpper();
+
+                return await _context.Proveedores
+                    .AnyAsync(p => p.Rfc != null && p.Rfc.Replace(" ", "").ToUpper() == rfcNorm);
+            }
+            catch (Exception)
+            {
+                throw new ApiProveedoresException("Error al validar el RFC.");
+            }
+        }
+
+
+        public async Task<Dictionary<string, object>> ObtenerInfoProveedorPorRfcAsync(string rfc)
+        {
+            if (string.IsNullOrWhiteSpace(rfc))
+                throw new ApiProveedoresException("RFC inválido.");
+
+            try
+            {
+                var rfcNorm = rfc.Replace(" ", "").ToUpperInvariant();
+
+                var proveedor = await _context.Proveedores
+                    .Include(p => p.ProveedorEmpresa)
+                        .ThenInclude(pe => pe.Empresa)
+                    .FirstOrDefaultAsync(p => p.Rfc != null && p.Rfc.Replace(" ", "").ToUpper() == rfcNorm);
+
+                if (proveedor == null)
+                {
+                    var vacío = new
+                    {
+                        rfc = rfcNorm,
+                        nombre = string.Empty,
+                        registrado = false,
+                        empresas = new List<object>()
+                    };
+                    return new Dictionary<string, object> { { rfcNorm, vacío } };
+                }
+
+                // Validación solicitada: si no trae empresas, lanzar excepción controlada
+                if (proveedor.ProveedorEmpresa == null || !proveedor.ProveedorEmpresa.Any())
+                    throw new ApiProveedoresException("Esta proveedor no tiene empresas asociadas");
+
+                var nombreProveedor = string.IsNullOrWhiteSpace(proveedor.RazonSocial) ? proveedor.Nombre : proveedor.RazonSocial;
+
+                var empresas = proveedor.ProveedorEmpresa?
+                    .Select(pe => new
+                    {
+                        id = pe.IdEmpresa.ToString(),
+                        nombre = pe.Empresa?.Nombre ?? string.Empty
+                    })
+                    .ToList();
+
+                var payload = new
+                {
+                    rfc = rfcNorm,
+                    nombre = nombreProveedor ?? string.Empty,
+                    registrado = true,
+                    empresas = empresas
+                };
+
+                return new Dictionary<string, object> { { rfcNorm, payload } };
+            }
+            catch (Exception ex)
+            {
+                throw new ApiProveedoresException(ex.Message ?? "Error al obtener información del RFC.");
+            }
+        }
     }
 }

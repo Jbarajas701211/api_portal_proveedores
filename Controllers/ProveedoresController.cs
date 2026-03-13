@@ -23,7 +23,6 @@ namespace ApiProveedores.Controllers
             _service = service;
         }
 
-       
         [Authorize]
         [HttpGet("buscar")]
         public async Task<IActionResult> Buscar(
@@ -75,6 +74,33 @@ namespace ApiProveedores.Controllers
         {
             var resultado = await _service.ObtenerDocumentosPorProveedorAsync(idProveedor);
             return Ok(resultado);
+        }
+
+        // Reemplazar el método ValidarRfc por este
+        [Authorize]
+        [HttpGet("validar_rfc")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ValidarRfc([FromQuery] string rfc)
+        {
+            if (string.IsNullOrWhiteSpace(rfc))
+                return BadRequest(new { mensaje = "RFC inválido." });
+
+            try
+            {
+                var resultado = await _service.ObtenerInfoProveedorPorRfcAsync(rfc);
+                return Ok(resultado);
+            }
+            catch (ApiProveedoresException appEx)
+            {
+                return NotFound(new { mensaje = appEx.Message ?? "Proveedor no encontrado o sin empresas asociadas." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { mensaje = "Error interno al validar el RFC." });
+            }
         }
 
         [Authorize]
