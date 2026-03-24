@@ -115,7 +115,6 @@ builder.Services.AddScoped<PublisherPnjService>(_ =>
 builder.Services.AddScoped<PublisherResumenService>(_ =>
     new PublisherResumenService(topicResumen));
 
-
 // servicios
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UsuariosService>();
@@ -127,6 +126,7 @@ builder.Services.AddScoped<DiaNoLaborableService>();
 builder.Services.AddScoped<ParametroSistemaService>();
 builder.Services.AddScoped<CatalogoService>();
 builder.Services.AddScoped<EmpresaService>();
+builder.Services.AddScoped<StorageService>();
 
 
 // Validaciones

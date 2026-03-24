@@ -447,14 +447,14 @@ namespace ApiProveedores.Services
 
                 if (proveedor == null)
                 {
-                    var vacío = new
+                    var vacio = new
                     {
                         rfc = rfcNorm,
                         nombre = string.Empty,
                         registrado = false,
                         empresas = new List<object>()
                     };
-                    return new Dictionary<string, object> { { rfcNorm, vacío } };
+                    return new Dictionary<string, object> { { rfcNorm, vacio } };
                 }
 
                 // Validación solicitada: si no trae empresas, lanzar excepción controlada

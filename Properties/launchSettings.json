@@ -16,7 +16,6 @@
         "CITAS_API_CORE_DATA_PROCESSING_COLA": "citas-data-processing-topic",
         "CITAS_API_CORE_DATA_REPORTING_COLA": "citas-reporting-data-topic",
         "CITAS_API_CORE_LLAVE_CIFRADO": "projects/marti-deportes-desarrollo/locations/us-central1/keyRings/CITAS_LLAVERO/cryptoKeys/CITAS_API_LLAVE_CIFRADO",
-        "GOOGLE_APPLICATION_CREDENTIALS": "/opt/01.marti/06.google.credentials/citas-marti-deportes-desarrollo-f4e8efa626a5.json",
         "GOOGLE_CLOUD_PROJECT": "marti-deportes-desarrollo",
         "PORTAL_CITAS_URL": "https://localhost:3000"
       }
