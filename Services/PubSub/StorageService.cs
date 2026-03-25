@@ -1,14 +1,19 @@
-﻿using Google.Api.Gax;
+using ApiProveedores.Services.Exceptions;
+using Google.Api.Gax;
 using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Iam.Credentials.V1;
 using Google.Cloud.Storage.V1;
+using Google.Protobuf;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.IO;
-using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.IO;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using ApiProveedores.Services.Exceptions;
+using System.Web;
 
 namespace ApiProveedores.Services.PubSub
 {
@@ -41,6 +46,20 @@ namespace ApiProveedores.Services.PubSub
             string bucket = null;
             string objectName = null;
 
+            if (objectUrl.Contains("/download/storage/v1/b/"))
+            {
+                var match = Regex.Match(objectUrl,
+                    @"https://storage.googleapis.com/download/storage/v1/b/([^/]+)/o/([^?]+)");
+
+                if (match.Success)
+                {
+                    var bucketFix = match.Groups[1].Value;
+                    var objectFix = Uri.UnescapeDataString(match.Groups[2].Value);
+
+                    objectUrl = $"https://storage.googleapis.com/{bucketFix}/{objectFix}";
+                }
+            }
+
             if (objectUrl.StartsWith("gs://", StringComparison.OrdinalIgnoreCase))
             {
                 var rest = objectUrl.Substring(5);
@@ -53,39 +72,14 @@ namespace ApiProveedores.Services.PubSub
             }
             else
             {
-                var m = Regex.Match(objectUrl, @"https?://storage.googleapis.com/download/storage/v1/b/([^/]+)/o/(.+)", RegexOptions.IgnoreCase);
-                if (m.Success)
-                {
-                    bucket = m.Groups[1].Value;
-                    // object may be URL-encoded in this path
-                    objectName = Uri.UnescapeDataString(m.Groups[2].Value);
-                    // Si vienen query params incluidas en el match, quitarlo
-                    var qIdx = objectName.IndexOf('?');
-                    if (qIdx >= 0) objectName = objectName.Substring(0, qIdx);
-                }
-                else
-                {
-                    m = Regex.Match(objectUrl, @"https?://storage.googleapis.com/([^/]+)/(.+)", RegexOptions.IgnoreCase);
-                    if (m.Success)
-                    {
-                        bucket = m.Groups[1].Value;
-                        objectName = Uri.UnescapeDataString(m.Groups[2].Value);
-                        // quitar query params por seguridad
-                        var qIdx = objectName.IndexOf('?');
-                        if (qIdx >= 0) objectName = objectName.Substring(0, qIdx);
-                    }
-                    else
-                    {
-                        m = Regex.Match(objectUrl, @"https?://([^.]+)\.storage\.googleapis\.com/(.+)", RegexOptions.IgnoreCase);
-                        if (m.Success)
-                        {
-                            bucket = m.Groups[1].Value;
-                            objectName = Uri.UnescapeDataString(m.Groups[2].Value);
-                            var qIdx = objectName.IndexOf('?');
-                            if (qIdx >= 0) objectName = objectName.Substring(0, qIdx);
-                        }
-                    }
-                }
+                var uri = new Uri(objectUrl);
+                var segments = uri.AbsolutePath.TrimStart('/').Split('/', 2);
+
+                if (segments.Length < 2)
+                    throw new ApiProveedoresException("URL inválida.");
+
+                bucket = segments[0];
+                objectName = Uri.UnescapeDataString(segments[1]);
             }
 
             if (string.IsNullOrEmpty(bucket) || string.IsNullOrEmpty(objectName))
@@ -93,31 +87,65 @@ namespace ApiProveedores.Services.PubSub
 
             try
             {
-                // Obtener credenciales ADC
-                var credential = await GoogleCredential.GetApplicationDefaultAsync();
+                var serviceAccount = "proveedores-portal-cs@proveedores-491118.iam.gserviceaccount.com";
 
-                UrlSigner signer = null;
+                var now = DateTime.UtcNow;
+                var datestamp = now.ToString("yyyyMMdd");
+                var timestamp = now.ToString("yyyyMMdd'T'HHmmss'Z'");
+                var expires = ((int)expiry.Value.TotalSeconds).ToString();
 
-                // Si la credencial subyacente es una ServiceAccountCredential podemos firmar localmente
-                if (credential.UnderlyingCredential is Google.Apis.Auth.OAuth2.ServiceAccountCredential)
+                var credentialScope = $"{datestamp}/auto/storage/goog4_request";
+
+                string EncodePath(string path)
                 {
-                    signer = UrlSigner.FromCredential(credential);
-                }
-                else
-                {
-                    // Intentar fallback a path de credenciales si existe
-                    var path = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                    {
-                        signer = UrlSigner.FromServiceAccountPath(path);
-                    }
+                    return string.Join("/", path.Split('/')
+                        .Select(p => Uri.EscapeDataString(p)));
                 }
 
-                if (signer == null)
-                    throw new ApiProveedoresException("No se encontraron credenciales de cuenta de servicio para firmar las URLs. Configure GOOGLE_APPLICATION_CREDENTIALS apuntando al JSON de la cuenta de servicio o ejecute con credenciales de servicio.");
+                var canonicalUri = "/" + EncodePath(objectName);
+                var host = $"{bucket}.storage.googleapis.com";
 
-                var signedUrl = signer.Sign(bucket, objectName, expiry.Value, HttpMethod.Get);
-                return signedUrl;
+                var queryParams = new SortedDictionary<string, string>
+                {
+                    { "X-Goog-Algorithm", "GOOG4-RSA-SHA256" },
+                    { "X-Goog-Credential", $"{serviceAccount}/{credentialScope}" },
+                    { "X-Goog-Date", timestamp },
+                    { "X-Goog-Expires", expires },
+                    { "X-Goog-SignedHeaders", "host" }
+                };
+
+                var canonicalQueryString = string.Join("&",
+                    queryParams.Select(kvp => $"{kvp.Key}={Uri.EscapeDataString(kvp.Value)}"));
+
+                var canonicalHeaders = $"host:{host}\n";
+                var signedHeaders = "host";
+                var payloadHash = "UNSIGNED-PAYLOAD";
+
+                var canonicalRequest = $"GET\n{canonicalUri}\n{canonicalQueryString}\n{canonicalHeaders}\n{signedHeaders}\n{payloadHash}";
+
+                using var sha256 = SHA256.Create();
+                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(canonicalRequest));
+                var hashedRequest = BitConverter.ToString(hash).Replace("-", "").ToLower();
+
+                var stringToSing = $"GOOG4-RSA-SHA256\n{timestamp}\n{credentialScope}\n{hashedRequest}";
+
+                var client = await IAMCredentialsClient.CreateAsync();
+
+                var request = new SignBlobRequest
+                {
+                    Name = $"projects/-/serviceAccounts/{serviceAccount}",
+                    Payload = ByteString.CopyFromUtf8(stringToSing)
+                };
+
+                var response = await client.SignBlobAsync(request);
+
+                var signature = BitConverter.ToString(response.SignedBlob.ToByteArray())
+                    .Replace("-", "")
+                    .ToLower();
+
+                var finalUrl = $"https://{bucket}.storage.googleapis.com/{EncodePath(objectName)}?{canonicalQueryString}&X-Goog-Signature={signature}";
+
+                return finalUrl;
             }
             catch (Exception ex)
             {
