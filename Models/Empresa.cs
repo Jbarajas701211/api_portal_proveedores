@@ -9,11 +9,6 @@ namespace ApiProveedores.Models
         public string Rfc { get; set; }
         public bool Estatus { get; set; }
         public string Unidad { get; set; }
-        public int Sobrante { get; set; }
-        public int PorcentajeSobrante { get; set; }
-        public int Faltante { get; set; }
-        public int PorcentajeFaltante { get; set; }
-        public bool AplicarTolerancia { get; set; }
 
         public ICollection<UsuarioEmpresa> UsuarioEmpresas { get; set; } = new List<UsuarioEmpresa>();
 

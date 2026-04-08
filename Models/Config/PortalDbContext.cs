@@ -22,11 +22,14 @@ public class PortalDbContext : DbContext
     public DbSet<Documento> Documento { get; set; }
     public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
     public DbSet<Empresa> Empresa { get; set; }
+    public DbSet<OrdenCompra> OrdenesCompra => Set<OrdenCompra>();
+    public DbSet<Recepcion> Recepciones => Set<Recepcion>();
+    public DbSet<RecepcionDetalle> RecepcionDetalles => Set<RecepcionDetalle>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("portal_proveedores");
-      
+
         modelBuilder.Entity<Proveedor>(entity =>
         {
             entity.ToTable("proveedores", "portal_proveedores");
@@ -118,11 +121,6 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.Rfc).HasColumnName("rfc");
             entity.Property(e => e.Estatus).HasColumnName("estatus");
             entity.Property(e => e.Unidad).HasColumnName("unidad");
-            entity.Property(e => e.Sobrante).HasColumnName("sobrante");
-            entity.Property(e => e.PorcentajeSobrante).HasColumnName("porcentaje_sobrante");
-            entity.Property(e => e.Faltante).HasColumnName("faltante");
-            entity.Property(e => e.PorcentajeFaltante).HasColumnName("porcentaje_faltante");
-            entity.Property(e => e.AplicarTolerancia).HasColumnName("aplicar_tolerancia");
 
             entity.HasMany(e => e.UsuarioEmpresas)
                 .WithOne(p => p.Empresa)
@@ -249,7 +247,7 @@ public class PortalDbContext : DbContext
                 .HasForeignKey(e => e.IdUsuario)
                 .OnDelete(DeleteBehavior.Restrict);
 
-           
+
         });
 
         modelBuilder.Entity<Documento>(entity =>
@@ -279,6 +277,64 @@ public class PortalDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<OrdenCompra>(entity =>
+        {
+            entity.ToTable("ordenes_compra", "portal_proveedores");
+            entity.HasKey(e => e.IdOrdenCompra);
+            entity.Property(e => e.IdOrdenCompra).HasColumnName("id_orden_compra");
+            entity.Property(e => e.ErpOrigen).HasColumnName("erp_origen");
+            entity.Property(e => e.IdExterno).HasColumnName("id_externo");
+            entity.Property(e => e.Folio).HasColumnName("folio");
+            entity.Property(e => e.FechaOc).HasColumnName("fecha_oc");
+            entity.Property(e => e.Moneda).HasColumnName("moneda");
+            entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
+            .IsUnique()
+            .HasDatabaseName("uq_oc");
+
+            entity.HasOne(e => e.Recepciones)
+                  .WithMany()
+                  .HasForeignKey(e => e.IdOrdenCompra)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Recepcion>(entity =>
+        {
+            entity.ToTable("recepciones", "portal_proveedores");
+            entity.HasKey(e => e.IdRecepcion);
+            entity.Property(e => e.IdRecepcion).HasColumnName("id_recepcion");
+            entity.Property(e => e.IdOrdenCompra).HasColumnName("id_orden_compra");
+            entity.Property(e => e.ErpOrigen).HasColumnName("erp_origen");
+            entity.Property(e => e.IdExterno).HasColumnName("id_externo");
+            entity.Property(e => e.FechaRecepcion).HasColumnName("fecha_recepcion");
+            entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
+                .IsUnique()
+                .HasDatabaseName("uq_recepcion");
+
+            entity.HasMany(e => e.Detalles)
+                  .WithOne(d => d.Recepcion)
+                  .HasForeignKey(d => d.IdRecepcion)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecepcionDetalle>(entity =>
+        {
+            entity.ToTable("recepcion_detalle", "portal_proveedores");
+            entity.HasKey(e => e.IdDetalle);
+            entity.Property(e => e.IdDetalle).HasColumnName("id_detalle");
+            entity.Property(e => e.IdRecepcion).HasColumnName("id_recepcion");
+            entity.Property(e => e.Linea).HasColumnName("linea");
+            entity.Property(e => e.Cantidad).HasColumnName("cantidad").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => new { e.IdRecepcion, e.Linea })
+                .IsUnique()
+                .HasDatabaseName("uq_detalle");
+
+        });
 
     }
 
