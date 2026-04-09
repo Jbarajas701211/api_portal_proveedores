@@ -1,8 +1,8 @@
 using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Dto.Paginadores;
+using ApiProveedores.Dto.Salida;
 using ApiProveedores.Models;
 using ApiProveedores.Services.Exceptions;
-using Google.Api;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
@@ -20,34 +20,6 @@ namespace ApiProveedores.Services
         {
             _context = context;
         }
-
-        public async Task<Proveedor> RecuperaProveedorAsync(long idProveedor)
-        {
-            var proveedor = await _context.Proveedores
-              .FirstOrDefaultAsync(o => o.Id_proveedor == idProveedor);
-            return proveedor;
-        }
-
-        public async Task<Proveedor> RecuperaProveedorAsync(string cveProveedor)
-        {
-            var proveedor = await _context.Proveedores
-              .FirstOrDefaultAsync(o => o.Id_proveedor == 1);
-            return proveedor;
-        }
-
-        public async Task<List<ApiProveedores.Dto.Salida.DocumentoProveedorDto>> ObtenerDocumentosPorProveedorAsync(long idProveedor)
-        {
-            return await _context.ProveedorDocumento
-                .Include(pd => pd.Documento)
-                .Where(pd => pd.IdProveedor == idProveedor)
-                .Select(pd => new ApiProveedores.Dto.Salida.DocumentoProveedorDto
-                {
-                    Documento = pd.Documento.Descripcion,
-                    Opcional = pd.Opcional
-                })
-                .ToListAsync();
-        }
-
       
 
         public async Task<ResultadoPaginado<ProveedorDto>> BuscarProveedoresPaginadoAsync(string? filtro, int pagina, int tamanioPagina)
@@ -105,318 +77,13 @@ namespace ApiProveedores.Services
                 Elementos = proveedores
             };
         }
+   
 
-        // Actualiza un proveedor buscando por Id exclusivamente.
-        // Devuelve true si se guardÛ correctamente, false si no existe el registro.
-        public async Task<bool> ActualizarProveedorAsync(ProveedorDto dto)
-        {
-            if (dto == null)
-                throw new ApiProveedoresException("Datos de proveedor inv·lidos.");
-
-            // Asegurarse de que venga un Id v·lido
-            if (dto.Id <= 0)
-            {
-                return false;
-            }
-
-            try
-            {
-                var existente = await _context.Proveedores.FindAsync(dto.Id);
-
-                if (existente == null)
-                    return false;
-
-                // Mapear campos del DTO a la entidad (solo campos esperados)
-                existente.Nombre = dto.NombreProveedor ?? existente.Nombre;
-
-                // Ajuste: VendorId es int en el modelo, parsear a int antes de asignar
-                if (!string.IsNullOrWhiteSpace(dto.ClaveProveedor))
-                {
-                    existente.VendorId = dto.ClaveProveedor;
-                }
-
-                existente.Estatus = dto.Estatus;
-                existente.Rfc = dto.Rfc;
-                existente.Sobrante = dto.Sobrante;
-                existente.PorcentajeSobrante = dto.PorcentajeSobrante;
-                existente.Faltante = dto.Faltante;
-                existente.PorcentajeFaltante = dto.PorcentajeFaltante;
-                existente.AplicarTolerancia = dto.AplicarTolerancia;
-                existente.IdCategoria = dto.IdCategoria == 0 ? 1 : dto.IdCategoria;
-                existente.AcreedorSinXml = dto.AccredorSinXml;
-                existente.AplicarToleranciaCategoria = dto.AplicarToleranciaCategoria;
-                existente.EmailProveedor = dto.Email;
-                existente.DocFiscal = dto.DocumentoFiscal;
-                existente.Factura = dto.Factura;
-                existente.Recepcion = dto.Recepcion;
-                existente.Origen = dto.Origen;
-                existente.RazonSocial = dto.RazonSocial;
-
-                _context.Proveedores.Update(existente);
-                await _context.SaveChangesAsync();
-
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                throw new ApiProveedoresException("No se pudo actualizar el registro.");
-            }
-            catch (Exception)
-            {
-                throw new ApiProveedoresException("No se pudo actualizar el registro.");
-            }
-        }
-
-        // Agregar una relaciÛn Proveedor - Documento
-        public async Task<bool> AgregarDocumentoProveedorAsync(ProveedorDocumentoDto dto)
-        {
-            if (dto == null)
-                throw new ApiProveedoresException("Datos inv·lidos.");
-
-            var proveedor = await _context.Proveedores.FindAsync(dto.IdProveedor);
-            if (proveedor == null)
-                return false; // proveedor no existe
-
-            var documento = await _context.Documento.FindAsync(dto.DocumentoId);
-            if (documento == null)
-                return false; // documento no existe
-
-            var existe = await _context.ProveedorDocumento.AnyAsync(pd => pd.IdProveedor == dto.IdProveedor && pd.DocumentoId == dto.DocumentoId);
-            if (existe)
-                return false; // ya existe la relaciÛn
-
-            var relacion = new ApiProveedores.Models.ProveedorDocumento
-            {
-                IdProveedor = dto.IdProveedor,
-                DocumentoId = dto.DocumentoId,
-                Opcional = dto.Opcional
-            };
-
-            try
-            {
-                _context.ProveedorDocumento.Add(relacion);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                throw new ApiProveedoresException("No se pudo agregar el documento al proveedor.");
-            }
-            catch (Exception)
-            {
-                throw new ApiProveedoresException("No se pudo agregar el documento al proveedor.");
-            }
-        }
-
-        // Eliminar una relaciÛn Proveedor - Documento
-        public async Task<bool> EliminarDocumentoProveedorAsync(long idProveedor, int documentoId)
-        {
-            var relacion = await _context.ProveedorDocumento
-                .FirstOrDefaultAsync(pd => pd.IdProveedor == idProveedor && pd.DocumentoId == documentoId);
-
-            if (relacion == null)
-                return false; // no existe la relaciÛn
-
-            try
-            {
-                _context.ProveedorDocumento.Remove(relacion);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                throw new ApiProveedoresException("No se pudo eliminar el documento del proveedor.");
-            }
-            catch (Exception)
-            {
-                throw new ApiProveedoresException("No se pudo eliminar el documento del proveedor.");
-            }
-        }
-
-
-        // Actualizar una relaciÛn Proveedor - Documento
-        public async Task<bool> ActualizarDocumentoProveedorAsync(ApiProveedores.Dto.Entrada.ProveedorDocumentoDto dto)
-        {
-            if (dto == null)
-                throw new ApiProveedoresException("Datos inv·lidos.");
-
-            var relacion = await _context.ProveedorDocumento
-                .FirstOrDefaultAsync(pd => pd.IdProveedor == dto.IdProveedor && pd.DocumentoId == dto.DocumentoId);
-
-            if (relacion == null)
-                return false;
-
-            relacion.Opcional = dto.Opcional;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                throw new ApiProveedoresException("No se pudo actualizar el documento del proveedor.");
-            }
-            catch (Exception)
-            {
-                throw new ApiProveedoresException("No se pudo actualizar el documento del proveedor.");
-            }
-        }
-
-        // Agregar varias relaciones Proveedor - Documento en lote
-        // Adem·s elimina de la BD las relaciones existentes para cada proveedor que no se incluyan en la lista recibida.
-        public async Task<bool> AgregarDocumentosProveedorAsync(List<ProveedorDocumentoDto> dtos)
-        {
-            if (dtos == null || !dtos.Any())
-                throw new ApiProveedoresException("Datos inv·lidos.");
-
-            var proveedorIds = dtos.Select(d => d.IdProveedor).Distinct().ToList();
-            var documentoIds = dtos.Select(d => d.DocumentoId).Distinct().ToList();
-
-            // Validar existencia de proveedores y documentos referenciados
-            var proveedoresExistentes = await _context.Proveedores
-                .Where(p => proveedorIds.Contains(p.Id_proveedor))
-                .Select(p => p.Id_proveedor)
-                .ToListAsync();
-
-            var documentosExistentes = await _context.Documento
-                .Where(d => documentoIds.Contains(d.Id))
-                .Select(d => d.Id)
-                .ToListAsync();
-
-            if (proveedoresExistentes.Count != proveedorIds.Count || documentosExistentes.Count != documentoIds.Count)
-                return false; // alg˙n id no existe
-
-            await using var txn = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // Para cada proveedor limpiar las relaciones que no vienen en la lista
-                foreach (var pid in proveedorIds)
-                {
-                    var dtosParaProveedor = dtos.Where(d => d.IdProveedor == pid).Select(d => d.DocumentoId).ToHashSet();
-
-                    var relacionesActuales = await _context.ProveedorDocumento
-                        .Where(pd => pd.IdProveedor == pid)
-                        .ToListAsync();
-
-                    // Eliminar relaciones que existen en BD pero no en la lista entrante
-                    var relacionesParaEliminar = relacionesActuales.Where(r => !dtosParaProveedor.Contains(r.DocumentoId)).ToList();
-                    if (relacionesParaEliminar.Any())
-                    {
-                        _context.ProveedorDocumento.RemoveRange(relacionesParaEliminar);
-                    }
-                }
-
-                // Cargar relaciones actuales restantes para evitar duplicados al insertar
-                var relacionesExistentes = await _context.ProveedorDocumento
-                    .Where(pd => proveedorIds.Contains(pd.IdProveedor))
-                    .Select(pd => new { pd.IdProveedor, pd.DocumentoId })
-                    .ToListAsync();
-
-                // Agregar las relaciones que no existan a˙n
-                foreach (var dto in dtos)
-                {
-                    var yaExiste = relacionesExistentes.Any(r => r.IdProveedor == dto.IdProveedor && r.DocumentoId == dto.DocumentoId);
-                    if (yaExiste)
-                        continue;
-
-                    var relacion = new ProveedorDocumento
-                    {
-                        IdProveedor = dto.IdProveedor,
-                        DocumentoId = dto.DocumentoId,
-                        Opcional = dto.Opcional
-                    };
-
-                    _context.ProveedorDocumento.Add(relacion);
-                }
-
-                await _context.SaveChangesAsync();
-                await txn.CommitAsync();
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                await txn.RollbackAsync();
-                throw new ApiProveedoresException("No se pudo agregar los documentos al proveedor.");
-            }
-            catch (System.Exception)
-            {
-                await txn.RollbackAsync();
-                throw new ApiProveedoresException("No se pudo agregar los documentos al proveedor.");
-            }
-        }
-
-        // Actualizar varias relaciones Proveedor - Documento en lote
-        // TambiÈn elimina de la BD las relaciones existentes para cada proveedor que no se incluyan en la lista recibida.
-        public async Task<bool> ActualizarDocumentosProveedorAsync(List<ProveedorDocumentoDto> dtos)
-        {
-            if (dtos == null || !dtos.Any())
-                throw new ApiProveedoresException("Datos inv·lidos.");
-
-            var proveedorIds = dtos.Select(d => d.IdProveedor).Distinct().ToList();
-
-            await using var txn = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // Para cada proveedor, obtener relaciones actuales y comparar
-                foreach (var pid in proveedorIds)
-                {
-                    var dtosParaProveedor = dtos.Where(d => d.IdProveedor == pid).ToList();
-                    var documentoIdsParaDto = dtosParaProveedor.Select(d => d.DocumentoId).ToHashSet();
-
-                    var relacionesActuales = await _context.ProveedorDocumento
-                        .Where(pd => pd.IdProveedor == pid)
-                        .ToListAsync();
-
-                    // Eliminar relaciones en BD que no vienen en la lista
-                    var relacionesParaEliminar = relacionesActuales.Where(r => !documentoIdsParaDto.Contains(r.DocumentoId)).ToList();
-                    if (relacionesParaEliminar.Any())
-                    {
-                        _context.ProveedorDocumento.RemoveRange(relacionesParaEliminar);
-                    }
-
-                    // Actualizar o agregar las relaciones recibidas
-                    foreach (var dto in dtosParaProveedor)
-                    {
-                        var rel = relacionesActuales.FirstOrDefault(r => r.DocumentoId == dto.DocumentoId);
-                        if (rel != null)
-                        {
-                            rel.Opcional = dto.Opcional;
-                        }
-                        else
-                        {
-                            // Si no existe, crearla
-                            var nueva = new ProveedorDocumento
-                            {
-                                IdProveedor = dto.IdProveedor,
-                                DocumentoId = dto.DocumentoId,
-                                Opcional = dto.Opcional
-                            };
-                            _context.ProveedorDocumento.Add(nueva);
-                        }
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                await txn.CommitAsync();
-                return true;
-            }
-            catch (DbUpdateException)
-            {
-                await txn.RollbackAsync();
-                throw new ApiProveedoresException("No se pudo actualizar los documentos del proveedor.");
-            }
-            catch (System.Exception)
-            {
-                await txn.RollbackAsync();
-                throw new ApiProveedoresException("No se pudo actualizar los documentos del proveedor.");
-            }
-        }
 
         public async Task<bool> ExisteRfcAsync(string rfc)
         {
             if (string.IsNullOrWhiteSpace(rfc))
-                throw new ApiProveedoresException("RFC inv·lido.");
+                throw new ApiProveedoresException("RFC invùlido.");
 
             try
             {
@@ -432,17 +99,17 @@ namespace ApiProveedores.Services
         }
 
 
-        public async Task<List<RecepcionResponseDto>> ObtenerRecepcionesAsync(string idExterno)
+        public async Task<List<RecepcionResponseDto>> ObtenerRecepcionesPorIdOcAsync(string idExterno)
         {
             if (string.IsNullOrWhiteSpace(idExterno))
-                throw new ApiProveedoresException("Orden de compra inv·lido.");
+                throw new ApiProveedoresException("Orden de compra invùlido.");
 
             try
             {
-                var existe = await _context.OrdenesCompra.AnyAsync(x => x.IdExterno == idExterno);
+                var existe = await _context.OrdenesCompras.AnyAsync(x => x.IdExterno == idExterno);
 
                 if(!existe)
-                    throw new ApiProveedoresException("No se encontrÛ la orden de compra.");
+                    throw new ApiProveedoresException("No se encontrù la orden de compra.");
 
                 var result = await _context.Recepciones
                     .Where(r => r.OrdenCompra.IdExterno == idExterno)
@@ -459,8 +126,78 @@ namespace ApiProveedores.Services
             }
             catch (Exception ex)
             {
-                throw new ApiProveedoresException(ex.Message ?? "Error al obtener informaciÛn del RFC.");
+                throw new ApiProveedoresException(ex.Message ?? "Error al obtener informaciùn del RFC.");
             }
+        }
+
+        public async Task<bool> ValidaSiCuentaConOrdenesCompraSinFactura(string idProveedor)
+        {
+            if (string.IsNullOrWhiteSpace(idProveedor))
+                throw new ApiProveedoresException("No cuentas con ordenes de compra pendientes de facturar");
+
+            try
+            {
+                return await _context.OrdenesCompras
+                    .AnyAsync(o => o.ProveedorId == idProveedor
+                        && !o.Recepciones.Any(r => r.FacturaRecepcion.Any()));
+            }
+            catch (Exception ex)
+            {
+
+                throw new ApiProveedoresException($"Error: {ex.Message} ");
+            }
+            
+        }
+
+        // Obtener ùrdenes de compra que no cuentan con factura (ninguna recepciùn con factura)
+        public async Task<List<OrdenCompraSinFacturaDto>> GetOrdenesSinFacturaAsync(string idProveedor)
+        {
+            if (string.IsNullOrWhiteSpace(idProveedor))
+                throw new ApiProveedoresException("El identificador de proveedor es obligatorio.");
+
+            var ordenes = await _context.OrdenesCompras
+                .AsNoTracking()
+                .Include(o => o.Recepciones)
+                .Where(o => o.ProveedorId == idProveedor
+                    && !o.Recepciones.Any(r => r.FacturaRecepcion.Any()))
+                .ToListAsync();
+
+            return ordenes.Select(MapOrdenSinFactura).ToList();
+        }
+
+        private static OrdenCompraSinFacturaDto MapOrdenSinFactura(OrdenCompra o)
+        {
+            return new OrdenCompraSinFacturaDto
+            {
+                IdOrdenCompra = o.IdOrdenCompra,
+                ErpOrigen = o.ErpOrigen,
+                IdExterno = o.IdExterno,
+                Folio = o.Folio,
+                FechaOc = o.FechaOc,
+                Moneda = o.Moneda,
+                Total = o.Total,
+                ProveedorId = o.ProveedorId,
+                ProveedorNombre = o.ProveedorNombre,
+                ProveedorRfc = o.ProveedorRfc,
+                Sociedad = o.Sociedad,
+                Subsidiaria = o.Subsidiaria,
+                Recepciones = o.Recepciones
+                    .Select(r => new RecepcionSinFacturaItemDto
+                    {
+                        IdRecepcion = r.IdRecepcion,
+                        IdOrdenCompra = r.IdOrdenCompra,
+                        ErpOrigen = r.ErpOrigen,
+                        IdExterno = r.IdExterno,
+                        Folio = r.Folio,
+                        FechaRecepcion = r.FechaRecepcion,
+                        FechaContabilizacion = r.FechaContabilizacion,
+                        Moneda = r.Moneda,
+                        Subtotal = r.Subtotal,
+                        Total = r.Total,
+                        Estado = r.Estado
+                    })
+                    .ToList()
+            };
         }
     }
 }

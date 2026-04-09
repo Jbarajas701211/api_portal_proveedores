@@ -1,8 +1,8 @@
-﻿
 using Microsoft.EntityFrameworkCore;
 using ApiProveedores.Models;
 using ApiProveedores.Dto.Auth;
 using static Grpc.Core.Metadata;
+using ApiProveedores.Models.Factura;
 
 public class PortalDbContext : DbContext
 {
@@ -22,9 +22,11 @@ public class PortalDbContext : DbContext
     public DbSet<Documento> Documento { get; set; }
     public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
     public DbSet<Empresa> Empresa { get; set; }
-    public DbSet<OrdenCompra> OrdenesCompra => Set<OrdenCompra>();
+    public DbSet<OrdenCompra> OrdenesCompras => Set<OrdenCompra>();
     public DbSet<Recepcion> Recepciones => Set<Recepcion>();
     public DbSet<RecepcionDetalle> RecepcionDetalles => Set<RecepcionDetalle>();
+    public DbSet<FacturaRecepcion> FacturasRecepcion => Set<FacturaRecepcion>();
+    public DbSet<Factura> Facturas => Set<Factura>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -288,14 +290,19 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.FechaOc).HasColumnName("fecha_oc");
             entity.Property(e => e.Moneda).HasColumnName("moneda");
             entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ProveedorId).HasColumnName("proveedor_id");
+            entity.Property(e => e.ProveedorNombre).HasColumnName("proveedor_nombre");
+            entity.Property(e => e.ProveedorRfc).HasColumnName("proveedor_rfc");
+            entity.Property(e => e.Sociedad).HasColumnName("sociedad");
+            entity. Property(e => e.Subsidiaria).HasColumnName("subsidiaria");
 
             entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
             .IsUnique()
             .HasDatabaseName("uq_oc");
 
-            entity.HasOne(e => e.Recepciones)
-                  .WithMany()
-                  .HasForeignKey(e => e.IdOrdenCompra)
+            entity.HasMany(e => e.Recepciones)
+                  .WithOne(r => r.OrdenCompra)
+                  .HasForeignKey(r => r.IdOrdenCompra)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -307,8 +314,19 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.IdOrdenCompra).HasColumnName("id_orden_compra");
             entity.Property(e => e.ErpOrigen).HasColumnName("erp_origen");
             entity.Property(e => e.IdExterno).HasColumnName("id_externo");
+            entity.Property(e => e.Folio).HasColumnName("folio");
             entity.Property(e => e.FechaRecepcion).HasColumnName("fecha_recepcion");
+            entity.Property(e => e.FechaContabilizacion).HasColumnName("fecha_contabilizacion");
+            entity.Property(e => e.Moneda).HasColumnName("moneda");
+            entity.Property(e => e.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(18,2)");
             entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Estado).HasColumnName("estado");
+            entity.Property(e => e.UsuarioCreacion).HasColumnName("usuario_creacion");
+            entity.Property(e => e.ProveedorId).HasColumnName("proveedor_id");
+            entity.Property(e => e.ProveedorNombre).HasColumnName("proveedor_nombre");
+            entity.Property(e => e.ProveedorRfc).HasColumnName("proveedor_rfc");
+            entity.Property(e => e.Sociedad).HasColumnName("sociedad");
+            entity.Property(e => e.Centro).HasColumnName("centro");
 
             entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
                 .IsUnique()
@@ -334,6 +352,62 @@ public class PortalDbContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("uq_detalle");
 
+        });
+
+        modelBuilder.Entity<FacturaRecepcion>(entity =>
+        {
+            entity.ToTable("factura_recepcion", "portal_proveedores");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FacturaId).HasColumnName("id_factura");
+            entity.Property(e => e.RecepcionId).HasColumnName("id_recepcion");
+            entity.HasOne(e => e.Factura)
+                  .WithMany(d => d.FacturaRecepcion)
+                  .HasForeignKey(e => e.FacturaId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Recepcion)
+                  .WithMany(r => r.FacturaRecepcion)
+                  .HasForeignKey(e => e.RecepcionId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Factura>(entity =>
+        {
+            entity.ToTable("facturas", "portal_proveedores");
+            entity.HasKey(e => e.IdFactura);
+            entity.Property(e => e.IdFactura).HasColumnName("id_factura");
+            entity.Property(e => e.IdProveedor).HasColumnName("id_proveedor");
+            entity.Property(e => e.IdEmpresa).HasColumnName("id_empresa");
+            entity.Property(e => e.TipoDeComprobante).HasColumnName("tipo_de_comprobante");
+            entity.Property(e => e.EstatusFactura).HasColumnName("estatus_factura");
+            entity.Property(e => e.FolioOrigen).HasColumnName("folio_origen");
+            entity.Property(e => e.Folio).HasColumnName("folio");
+            entity.Property(e => e.Serie).HasColumnName("serie");
+            entity.Property(e => e.Uuid).HasColumnName("uuid");
+            entity.Property(e => e.Motivo).HasColumnName("motivo");
+            entity.Property(e => e.HayEvidencia).HasColumnName("hay_evidencia");
+            entity.Property(e => e.FechaAlta).HasColumnName("fecha_alta");
+            entity.Property(e => e.FechaFactura).HasColumnName("fecha_factura");
+            entity.Property(e => e.Subtotal).HasColumnName("subtotal");
+            entity.Property(e => e.CdTotal).HasColumnName("cd_total");
+            entity.Property(e => e.Total).HasColumnName("total");
+            entity.Property(e => e.MontoDeRecepcion).HasColumnName("monto_de_recepcion");
+            entity.Property(e => e.CorreoElectronico).HasColumnName("correo_electronico");
+            entity.Property(e => e.Xml).HasColumnName("xml").HasColumnType("text");
+            entity.Property(e => e.RepresentacionGrafica).HasColumnName("representacion_grafica").HasColumnType("text");
+            entity.Property(e => e.UnidadNegocio).HasColumnName("unidad_negocio");
+            entity.Property(e => e.NoOrdenCompra).HasColumnName("no_orden_compra");
+            entity.Property(e => e.NoRecepcion).HasColumnName("no_recepcion");
+            entity.Property(e => e.VersionCfdi).HasColumnName("version_cfdi");
+            entity.Property(e => e.Ieps).HasColumnName("ieps").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro");
+            entity.Property(e => e.Iva).HasColumnName("iva").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.FolioErp).HasColumnName("folio_erp");
+            entity.Property(e => e.FechaContabilizacion).HasColumnName("fecha_contabilizacion");
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion");
+            entity.Property(e => e.FechaModificacion).HasColumnName("fecha_modificacion");
+
+            // Relación Factura ↔ FacturaRecepcion definida en modelBuilder.Entity<FacturaRecepcion>
         });
 
     }

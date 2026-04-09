@@ -128,6 +128,7 @@ builder.Services.AddScoped<CatalogoService>();
 builder.Services.AddScoped<EmpresaService>();
 builder.Services.AddScoped<StorageService>();
 builder.Services.AddScoped<FacturaService>();
+builder.Services.AddScoped<OrdenCompraService>();
 
 
 // Validaciones

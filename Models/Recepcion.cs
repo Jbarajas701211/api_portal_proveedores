@@ -1,4 +1,7 @@
-﻿namespace ApiProveedores.Models
+﻿using System;
+using System.Collections.Generic;
+
+namespace ApiProveedores.Models
 {
     public class Recepcion
     {
@@ -27,8 +30,10 @@
         public string? Sociedad { get; set; }
         public string? Centro { get; set; }
 
-       
         public OrdenCompra OrdenCompra { get; set; } = null!;
         public ICollection<RecepcionDetalle> Detalles { get; set; } = new List<RecepcionDetalle>();
+
+        // Collection of factura recepcion; initialize to avoid null warnings
+        public List<FacturaRecepcion> FacturaRecepcion { get; set; } = new();
     }
 }

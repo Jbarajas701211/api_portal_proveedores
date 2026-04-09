@@ -13,12 +13,12 @@ namespace ApiProveedores.Controllers
 {
     [ApiController]
     [Authorize]
-    [Route("api/proveedores")]
-    public class ProveedoresController : ControllerBase
+    [Route("api/orden_compra")]
+    public class OrdenCompraController : ControllerBase
     {
-        private readonly ProveedoresService _service;
+        private readonly OrdenCompraService _service;
 
-        public ProveedoresController(ProveedoresService service)
+        public OrdenCompraController(OrdenCompraService service)
         {
             _service = service;
         }
@@ -35,151 +35,41 @@ namespace ApiProveedores.Controllers
         }
 
         [Authorize]
-        [HttpGet]
-        public async Task<IActionResult> GetProveedorByClave([FromQuery] string? claveProveedor)
+        [HttpGet("tiene_ordenes_compra")]
+        public async Task<IActionResult> ValidaSiCuentaConOrdenesCompraSinFactura([FromQuery] string idProveedor)
         {
-            var resultado = await _service.RecuperaProveedorAsync(claveProveedor);
-            return Ok(resultado);
-        }
-
-        [Authorize]
-        [HttpPut]
-        public async Task<IActionResult> UpdateProveedor([FromBody] ProveedorDto proveedorDto)
-        {
-            if (proveedorDto == null)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
             try
             {
-                var actualizado = await _service.ActualizarProveedorAsync(proveedorDto);
-
-                if (actualizado)
-                    return Ok(new { mensaje = "Proveedor actualizado correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo actualizar el registro." });
+                var resultado = await _service.ValidaSiCuentaConOrdenesCompraSinFactura(idProveedor);
+                return Ok(new { tieneOrdenesCompraSinFactura = resultado });
             }
-            catch (ApiProveedores.Services.Exceptions.ApiProveedoresException appEx)
+            catch (ApiProveedoresException appEx)
             {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo actualizar el registro." });
+                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo validar las órdenes de compra pendientes de facturar." });
             }
             catch (Exception)
             {
-                return StatusCode(500, new { mensaje = "No se pudo actualizar el registro." });
+                return StatusCode(500, new { mensaje = "No se pudo validar las órdenes de compra pendientes de facturar." });
             }
+
         }
 
         [Authorize]
-        [HttpGet("documentos")]
-        public async Task<IActionResult> GetDocumentosByProveedor([FromQuery] long idProveedor)
+        [HttpGet("ordenes_compra_sin_factura")]
+        public async Task<IActionResult> ObtenerOrdenesCompraSinFactura([FromQuery] string idProveedor)
         {
-            var resultado = await _service.ObtenerDocumentosPorProveedorAsync(idProveedor);
-            return Ok(resultado);
-        }
-
-        // Reemplazar el método ValidarRfc por este
-        [Authorize]
-        [HttpGet("validar_rfc")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ValidarRfc([FromQuery] string rfc)
-        {
-            if (string.IsNullOrWhiteSpace(rfc))
-                return BadRequest(new { mensaje = "RFC inválido." });
-
             try
             {
-                var resultado = await _service.ObtenerInfoProveedorPorRfcAsync(rfc);
+                var resultado = await _service.GetOrdenesSinFacturaAsync(idProveedor);
                 return Ok(resultado);
             }
             catch (ApiProveedoresException appEx)
             {
-                return NotFound(new { mensaje = appEx.Message ?? "Proveedor no encontrado o sin empresas asociadas." });
+                return BadRequest(new { mensaje = appEx.Message ?? "No se pudieron obtener las órdenes de compra pendientes de facturar." });
             }
             catch (Exception)
             {
-                return StatusCode(500, new { mensaje = "Error interno al validar el RFC." });
-            }
-        }
-
-        [Authorize]
-        [HttpPost("documentos")]
-        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> AddDocumentoProveedor([FromBody] List<ProveedorDocumentoDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
-            try
-            {
-                var creado = await _service.AgregarDocumentosProveedorAsync(dtos);
-                if (creado)
-                    return Ok(new { mensaje = "Documento(s) asociado(s) al proveedor correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo asociar los documentos al proveedor." });
-            }
-            catch (ApiProveedoresException appEx)
-            {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo asociar los documentos al proveedor." });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo asociar los documentos al proveedor." });
-            }
-        }
-
-        [Authorize]
-        [HttpDelete("documentos")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteDocumentoProveedor([FromQuery] long idProveedor, [FromQuery] int documentoId)
-        {
-            try
-            {
-                var eliminado = await _service.EliminarDocumentoProveedorAsync(idProveedor, documentoId);
-                if (eliminado)
-                    return Ok(new { mensaje = "Documento desasociado del proveedor correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo desasociar el documento del proveedor." });
-            }
-            catch (ApiProveedoresException appEx)
-            {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo desasociar el documento del proveedor." });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo desasociar el documento del proveedor." });
-            }
-        }
-
-        [Authorize]
-        [HttpPut("documentos")]
-        public async Task<IActionResult> UpdateDocumentoProveedor([FromBody] List<ProveedorDocumentoDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
-            try
-            {
-                var actualizado = await _service.ActualizarDocumentosProveedorAsync(dtos);
-                if (actualizado)
-                    return Ok(new { mensaje = "Documento(s) del proveedor actualizado(s) correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo actualizar los documentos del proveedor." });
-            }
-            catch (ApiProveedores.Services.Exceptions.ApiProveedoresException appEx)
-            {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo actualizar los documentos del proveedor." });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo actualizar los documentos del proveedor." });
+                return StatusCode(500, new { mensaje = "No se pudieron obtener las órdenes de compra pendientes de facturar." });
             }
         }
     }
