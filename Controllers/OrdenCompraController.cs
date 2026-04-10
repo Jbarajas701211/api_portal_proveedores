@@ -56,11 +56,30 @@ namespace ApiProveedores.Controllers
 
         [Authorize]
         [HttpGet("ordenes_compra_sin_factura")]
-        public async Task<IActionResult> ObtenerOrdenesCompraSinFactura([FromQuery] string idProveedor)
+        public async Task<IActionResult> ObtenerOrdenesCompraSinFactura([FromQuery] string rfcProveedor, string ordenCompra)
         {
             try
             {
-                var resultado = await _service.GetOrdenesSinFacturaAsync(idProveedor);
+                var resultado = await _service.GetOrdenesSinFacturaAsync(rfcProveedor, ordenCompra);
+                return Ok(resultado);
+            }
+            catch (ApiProveedoresException appEx)
+            {
+                return BadRequest(new { mensaje = appEx.Message ?? "No se pudieron obtener las órdenes de compra pendientes de facturar." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { mensaje = "No se pudieron obtener las órdenes de compra pendientes de facturar." });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("orden_compra_recepciones_sin_factura")]
+        public async Task<IActionResult> ObtenerOrdenCompraRecepcionesSinFactura([FromQuery] string rfcProveedor, string ordenCompra)
+        {
+            try
+            {
+                var resultado = await _service.GetOrdenRecepcionSinFacturaAsync(rfcProveedor, ordenCompra);
                 return Ok(resultado);
             }
             catch (ApiProveedoresException appEx)

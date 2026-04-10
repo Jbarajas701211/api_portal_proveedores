@@ -29,6 +29,7 @@ namespace ApiProveedores.Models
 
         public string? Sociedad { get; set; }
         public string? Centro { get; set; }
+        public decimal? Cantidad { get; set; }
 
         public OrdenCompra OrdenCompra { get; set; } = null!;
         public ICollection<RecepcionDetalle> Detalles { get; set; } = new List<RecepcionDetalle>();

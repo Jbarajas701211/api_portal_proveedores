@@ -327,6 +327,7 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.ProveedorRfc).HasColumnName("proveedor_rfc");
             entity.Property(e => e.Sociedad).HasColumnName("sociedad");
             entity.Property(e => e.Centro).HasColumnName("centro");
+            entity.Property(e => e.Cantidad).HasColumnName("cantidad").HasColumnType("decimal(18,2)");
 
             entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
                 .IsUnique()

@@ -55,8 +55,8 @@ namespace ApiProveedores.Controllers
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UploadFactura(IFormFile[] file, [FromQuery] string idProveedor)
+        [HttpPost("alta_de_factura")]
+        public async Task<IActionResult> UploadFactura(IFormFile[] file, [FromQuery] string rfcProveedor, string folioOrdenCompra, string folioRecibo)
         {
             if (file == null || file.Length == 0)
                 return BadRequest(new { mensaje = "Archivo no proporcionado." });
@@ -96,7 +96,7 @@ namespace ApiProveedores.Controllers
                 return Ok(new
                 {
                     mensaje = "Archivos subidos correctamente.",
-                    idProveedor,
+                    rfcProveedor,
                     uuid = factura.Uuid,
                     serie = factura.Comprobante.Serie,
                     folio = factura.Comprobante.Folio,

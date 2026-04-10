@@ -39,4 +39,5 @@ public class RecepcionSinFacturaItemDto
     public decimal? Subtotal { get; set; }
     public decimal? Total { get; set; }
     public string? Estado { get; set; }
+    public decimal Cantidad { get; set; }
 }

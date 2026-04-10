@@ -14,10 +14,14 @@ namespace ApiProveedores.Services
     public class ProveedoresService
     {
         private readonly PortalDbContext _context;
+        private readonly ILogger<ProveedoresService> _logger;
+        private readonly OrdenCompraService _ordenCompraService;
 
-        public ProveedoresService(PortalDbContext context)
+        public ProveedoresService(PortalDbContext context, ILogger<ProveedoresService> logger, OrdenCompraService ordenCompraService)
         {
             _context = context;
+            _logger = logger;
+            _ordenCompraService = ordenCompraService;
         }
 
         public async Task<Proveedor> RecuperaProveedorAsync(long idProveedor)
@@ -284,7 +288,7 @@ namespace ApiProveedores.Services
                 .ToListAsync();
 
             if (proveedoresExistentes.Count != proveedorIds.Count || documentosExistentes.Count != documentoIds.Count)
-                return false; // algún id no existe
+                return false; 
 
             await using var txn = await _context.Database.BeginTransactionAsync();
             try
@@ -460,6 +464,11 @@ namespace ApiProveedores.Services
                 // Validación solicitada: si no trae empresas, lanzar excepción controlada
                 if (proveedor.ProveedorEmpresa == null || !proveedor.ProveedorEmpresa.Any())
                     throw new ApiProveedoresException("Esta proveedor no tiene empresas asociadas");
+
+                // Validar si cuenta con Ordenes de compra asociadas, si no tiene, lanzar excepción controlada
+                var tieneOrdenesCompra = await _ordenCompraService.ValidaSiCuentaConOrdenesCompraSinFactura(proveedor.Id_proveedor.ToString());
+                if (!tieneOrdenesCompra)
+                throw new ApiProveedoresException("Esta proveedor no tiene ordenes de compra asociadas");
 
                 var nombreProveedor = string.IsNullOrWhiteSpace(proveedor.RazonSocial) ? proveedor.Nombre : proveedor.RazonSocial;
 

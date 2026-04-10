@@ -149,20 +149,34 @@ namespace ApiProveedores.Services
             
         }
 
-        // Obtener ùrdenes de compra que no cuentan con factura (ninguna recepciùn con factura)
-        public async Task<List<OrdenCompraSinFacturaDto>> GetOrdenesSinFacturaAsync(string idProveedor)
+        // Obtener ùrdenes de compra que no cuentan con factura (ninguna recepciùon con factura)
+        public async Task<List<OrdenCompraSinFacturaDto>> GetOrdenesSinFacturaAsync(string rfcProveedor, string ordenCompra)
         {
-            if (string.IsNullOrWhiteSpace(idProveedor))
-                throw new ApiProveedoresException("El identificador de proveedor es obligatorio.");
+            if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra))
+                throw new ApiProveedoresException("La informaciÛn no se est· enviando completa.");
 
             var ordenes = await _context.OrdenesCompras
                 .AsNoTracking()
                 .Include(o => o.Recepciones)
-                .Where(o => o.ProveedorId == idProveedor
-                    && !o.Recepciones.Any(r => r.FacturaRecepcion.Any()))
+                .Where(o => o.ProveedorRfc == rfcProveedor
+                    && o.Folio == ordenCompra && !o.Recepciones.Any(r => r.FacturaRecepcion.Any()))
                 .ToListAsync();
 
             return ordenes.Select(MapOrdenSinFactura).ToList();
+        }
+
+        public async Task<OrdenCompraSinFacturaDto> GetOrdenRecepcionSinFacturaAsync(string rfcProveedor, string ordenCompra)
+        {
+            if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra))
+                throw new ApiProveedoresException("La informaciÛn no se est· enviando completa.");
+
+            var ordenes = await _context.OrdenesCompras
+                .AsNoTracking()
+                .Include(o => o.Recepciones)
+                .Where(o => o.ProveedorRfc == rfcProveedor
+                    && o.Folio == ordenCompra && !o.Recepciones.Any(r => r.FacturaRecepcion.Any())).FirstOrDefaultAsync();
+
+            return ordenes != null ? MapOrdenSinFactura(ordenes) : new OrdenCompraSinFacturaDto();
         }
 
         private static OrdenCompraSinFacturaDto MapOrdenSinFactura(OrdenCompra o)
@@ -194,7 +208,8 @@ namespace ApiProveedores.Services
                         Moneda = r.Moneda,
                         Subtotal = r.Subtotal,
                         Total = r.Total,
-                        Estado = r.Estado
+                        Estado = r.Estado,
+                        Cantidad = r.Cantidad ?? 0
                     })
                     .ToList()
             };
