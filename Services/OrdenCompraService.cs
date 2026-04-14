@@ -20,83 +20,6 @@ namespace ApiProveedores.Services
         {
             _context = context;
         }
-      
-
-        public async Task<ResultadoPaginado<ProveedorDto>> BuscarProveedoresPaginadoAsync(string? filtro, int pagina, int tamanioPagina)
-        {
-            if (pagina <= 0) pagina = 1;
-            if (tamanioPagina <= 0) tamanioPagina = 10;
-
-            var query = _context.Proveedores.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(filtro))
-            {
-                var filtroNorm = filtro.Trim();
-
-                query = query.Where(p =>
-                    EF.Functions.ILike(p.Nombre, $"%{filtroNorm}%"));
-            }
-
-            var total = await query.CountAsync();
-            var totalPaginas = (int)Math.Ceiling((double)total / tamanioPagina);
-
-            var proveedores = await query
-                .OrderBy(p => p.Nombre)
-                .Skip((pagina - 1) * tamanioPagina)
-                .Take(tamanioPagina)
-                .Select(p => new ProveedorDto
-                {
-                    Id = p.Id_proveedor,
-                    NombreProveedor = p.Nombre,
-                    ClaveProveedor = p.VendorId.ToString(),
-                    Estatus = p.Estatus,
-                    Rfc = p.Rfc,
-                    Sobrante = p.Sobrante,
-                    PorcentajeSobrante = p.PorcentajeSobrante,
-                    Faltante = p.Faltante,
-                    PorcentajeFaltante = p.PorcentajeFaltante,
-                    AplicarTolerancia = p.AplicarTolerancia,
-                    IdCategoria = p.IdCategoria,
-                    AccredorSinXml = p.AcreedorSinXml,
-                    AplicarToleranciaCategoria = p.AplicarToleranciaCategoria,
-                    Email = p.EmailProveedor,
-                    DocumentoFiscal = p.DocFiscal,
-                    Factura = p.Factura,
-                    Recepcion = p.Recepcion,
-                    Origen = p.Origen,
-                    RazonSocial = p.RazonSocial
-
-                })
-                .ToListAsync();
-
-            return new ResultadoPaginado<ProveedorDto>
-            {
-                PaginaActual = pagina,
-                TotalPaginas = totalPaginas,
-                TotalElementos = total,
-                Elementos = proveedores
-            };
-        }
-   
-
-
-        public async Task<bool> ExisteRfcAsync(string rfc)
-        {
-            if (string.IsNullOrWhiteSpace(rfc))
-                throw new ApiProveedoresException("RFC invlido.");
-
-            try
-            {
-                var rfcNorm = rfc.Replace(" ", "").ToUpper();
-
-                return await _context.Proveedores
-                    .AnyAsync(p => p.Rfc != null && p.Rfc.Replace(" ", "").ToUpper() == rfcNorm);
-            }
-            catch (Exception)
-            {
-                throw new ApiProveedoresException("Error al validar el RFC.");
-            }
-        }
 
 
         public async Task<List<RecepcionResponseDto>> ObtenerRecepcionesPorIdOcAsync(string idExterno)
@@ -106,7 +29,7 @@ namespace ApiProveedores.Services
 
             try
             {
-                var existe = await _context.OrdenesCompras.AnyAsync(x => x.IdExterno == idExterno);
+                var existe = await _context.Recepciones.AnyAsync(x => x.IdRecepcion.ToString() == idExterno);
 
                 if(!existe)
                     throw new ApiProveedoresException("No se encontr la orden de compra.");
@@ -118,7 +41,7 @@ namespace ApiProveedores.Services
                         IdRecepcion = r.IdRecepcion,
                         Fecha = r.FechaRecepcion,
                         Cantidad = r.Detalles.Sum(d => d.Cantidad ?? 0),
-                        Monto = r.Total
+                        Monto = r.Subtotal
                     }).ToListAsync();
 
 

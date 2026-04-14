@@ -18,11 +18,10 @@ public class PortalDbContext : DbContext
     public DbSet<NotificacionUsuario> NotificacionesUsuarios { get; set; }
     public DbSet<DiaNoLaborable> DiasNoLaborables { get; set; }
     public DbSet<ParametroSistema> ParametrosSistema { get; set; }
-    public DbSet<ProveedorEmpresa> ProveedorEmpresa { get; set; }        // <-- navegación
+    public DbSet<ProveedorEmpresa> ProveedorEmpresa { get; set; }
     public DbSet<Documento> Documento { get; set; }
     public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
-    public DbSet<Empresa> Empresa { get; set; }
-    public DbSet<OrdenCompra> OrdenesCompras => Set<OrdenCompra>();
+   3
     public DbSet<Recepcion> Recepciones => Set<Recepcion>();
     public DbSet<RecepcionDetalle> RecepcionDetalles => Set<RecepcionDetalle>();
     public DbSet<FacturaRecepcion> FacturasRecepcion => Set<FacturaRecepcion>();

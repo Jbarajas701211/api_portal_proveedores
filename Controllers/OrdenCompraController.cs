@@ -24,17 +24,6 @@ namespace ApiProveedores.Controllers
         }
 
         [Authorize]
-        [HttpGet("buscar")]
-        public async Task<IActionResult> Buscar(
-            [FromQuery] string? filtro,
-            [FromQuery] int pagina = 1,
-            [FromQuery] int tamanio = 10)
-        {
-            var resultado = await _service.BuscarProveedoresPaginadoAsync(filtro, pagina, tamanio);
-            return Ok(resultado);
-        }
-
-        [Authorize]
         [HttpGet("tiene_ordenes_compra")]
         public async Task<IActionResult> ValidaSiCuentaConOrdenesCompraSinFactura([FromQuery] string idProveedor)
         {

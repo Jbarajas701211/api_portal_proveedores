@@ -1,13 +1,15 @@
+using ApiProveedores.Dto;
 using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Dto.Paginadores;
+using ApiProveedores.Dto.Proveedor;
 using ApiProveedores.Models;
 using ApiProveedores.Services.Exceptions;
 using Google.Api;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace ApiProveedores.Services
 {
@@ -473,19 +475,26 @@ namespace ApiProveedores.Services
                 var nombreProveedor = string.IsNullOrWhiteSpace(proveedor.RazonSocial) ? proveedor.Nombre : proveedor.RazonSocial;
 
                 var empresas = proveedor.ProveedorEmpresa?
-                    .Select(pe => new
+                    .Select(pe => new EmpresaDto
                     {
-                        id = pe.IdEmpresa.ToString(),
-                        nombre = pe.Empresa?.Nombre ?? string.Empty
+                        IdEmpresa = pe.IdEmpresa,
+                        Nombre = pe.Empresa?.Nombre ?? string.Empty
                     })
                     .ToList();
 
-                var payload = new
+
+
+                var payload = new ProveedorResponseDto
                 {
-                    rfc = rfcNorm,
-                    nombre = nombreProveedor ?? string.Empty,
-                    registrado = true,
-                    empresas = empresas
+                    Rfc = rfcNorm,
+                    Nombre = nombreProveedor ?? string.Empty,
+                    Estatus = proveedor.Estatus,
+                    Empresas = empresas,
+                    Sobrante = proveedor.Sobrante,
+                    PorcentajeSobrante= proveedor.PorcentajeSobrante,
+                    Faltante = proveedor.Faltante,
+                    FaltantePorcentaje = proveedor.PorcentajeFaltante,
+                    AplicarTolerancia = proveedor.AplicarTolerancia
                 };
 
                 return new Dictionary<string, object> { { rfcNorm, payload } };
