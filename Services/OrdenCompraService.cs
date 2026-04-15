@@ -102,6 +102,20 @@ namespace ApiProveedores.Services
             return ordenes != null ? MapOrdenSinFactura(ordenes) : new OrdenCompraSinFacturaDto();
         }
 
+        public async Task<OrdenCompraSinFacturaDto> GetOrdenIdRecepcionAsync(string rfcProveedor, string ordenCompra, long idRecepcion)
+        {
+            if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra) || idRecepcion == 0)
+                throw new ApiProveedoresException("La información no se está enviando completa.");
+
+            var orden = await _context.OrdenesCompras
+                .AsNoTracking()
+                .Include(o => o.Recepciones.Where(r => r.IdRecepcion == idRecepcion))
+                .Where(o => o.ProveedorRfc == rfcProveedor
+                    && o.Folio == ordenCompra).FirstOrDefaultAsync();
+
+            return orden != null ? MapOrdenSinFactura(orden) : new OrdenCompraSinFacturaDto();
+        }
+
         private static OrdenCompraSinFacturaDto MapOrdenSinFactura(OrdenCompra o)
         {
             return new OrdenCompraSinFacturaDto

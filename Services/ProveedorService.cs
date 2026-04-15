@@ -486,6 +486,7 @@ namespace ApiProveedores.Services
 
                 var payload = new ProveedorResponseDto
                 {
+                    IdProveedor = proveedor.Id_proveedor,
                     Rfc = rfcNorm,
                     Nombre = nombreProveedor ?? string.Empty,
                     Estatus = proveedor.Estatus,

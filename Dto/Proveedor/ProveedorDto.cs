@@ -4,7 +4,7 @@ namespace ApiProveedores.Dto.Proveedor
 {
     public class ProveedorResponseDto
     {
-        public int IdProveedor { get; set; }
+        public long IdProveedor { get; set; }
         public string? Nombre { get; set; }
         public string? Rfc { get; set; }
         public string? IdVendor { get; set; }

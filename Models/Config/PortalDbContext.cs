@@ -21,7 +21,8 @@ public class PortalDbContext : DbContext
     public DbSet<ProveedorEmpresa> ProveedorEmpresa { get; set; }
     public DbSet<Documento> Documento { get; set; }
     public DbSet<ProveedorDocumento> ProveedorDocumento { get; set; }
-   3
+    public DbSet<Empresa> Empresa { get; set; }
+    public DbSet<OrdenCompra> OrdenesCompras => Set<OrdenCompra>();
     public DbSet<Recepcion> Recepciones => Set<Recepcion>();
     public DbSet<RecepcionDetalle> RecepcionDetalles => Set<RecepcionDetalle>();
     public DbSet<FacturaRecepcion> FacturasRecepcion => Set<FacturaRecepcion>();

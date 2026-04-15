@@ -44,7 +44,17 @@ public class FacturaCfdiDocumento
 
     public string? FormaPago => Comprobante.FormaPago;
 
-    public DateTime? FechaComprobante => ParseFechaIso(Comprobante.Fecha);
+    public DateTime? FechaComprobante
+    {
+        get
+        {
+            // El Comprobante.Fecha puede venir en varios formatos ISO; usar ParseFechaIso para tolerancia
+            if (Comprobante == null || string.IsNullOrWhiteSpace(Comprobante.Fecha))
+                return null;
+
+            return ParseFechaIso(Comprobante.Fecha);
+        }
+    }
 
     public DateTime? FechaTimbrado => ParseFechaIso(TimbreFiscalDigital?.FechaTimbrado);
 
@@ -60,12 +70,45 @@ public class FacturaCfdiDocumento
         return decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : null;
     }
 
-    private static DateTime? ParseFechaIso(string? s)
+    // Se corrige el uso de DateTimeStyles: RoundtripKind no puede mezclarse con AssumeLocal/AssumeUniversal/AdjustToUniversal
+    private static DateTime? ParseFechaIso(string s)
     {
-        if (string.IsNullOrWhiteSpace(s)) return null;
-        return DateTime.TryParse(s, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeLocal | DateTimeStyles.RoundtripKind, out var dt)
-            ? dt
-            : null;
+        if (string.IsNullOrWhiteSpace(s))
+            return null;
+
+        // Intentar formatos comunes ISO 8601 con y sin offset
+        var formats = new[]
+        {
+                "yyyy-MM-ddTHH:mm:ss.fffK",
+                "yyyy-MM-ddTHH:mm:ssK",
+                "yyyy-MM-ddTHH:mm:ss.fff",
+                "yyyy-MM-ddTHH:mm:ss",
+                "yyyy-MM-dd"
+            };
+
+        // Primero intentar ParseExact con estilos que no mezclen RoundtripKind con Assume*
+        if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dtExact))
+        {
+            return dtExact;
+        }
+
+        // Si falla, intentar Parse con DateTimeStyles.AdjustToUniversal o None según contenido
+        // Si la cadena contiene zona (Z o +/-) usar AssumeUniversal/AdjustToUniversal
+        var styles = DateTimeStyles.None;
+        if (s.EndsWith("Z", StringComparison.OrdinalIgnoreCase) || s.Contains("+") || s.Contains("-"))
+        {
+            styles = DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal;
+        }
+
+        if (DateTime.TryParse(s, CultureInfo.InvariantCulture, styles, out var dt))
+        {
+            return dt;
+        }
+
+        // Fallback: intentar parse sin provider
+        if (DateTime.TryParse(s, out var dtFallback))
+            return dtFallback;
+
+        return null;
     }
 }

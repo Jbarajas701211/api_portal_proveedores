@@ -2,6 +2,7 @@
 {
     public enum TipoAccionSiguientejEnum
     {
+        ErrorEnProceso,
         ProcesoCompleto,
         SolicitarNotaCredito,
 

@@ -56,74 +56,33 @@ namespace ApiProveedores.Controllers
         }
 
         [HttpPost("alta_de_factura")]
-        public async Task<IActionResult> UploadFactura(IFormFile[] file, [FromQuery] string rfcProveedor, string folioOrdenCompra, string folioRecibo)
+        public async Task<IActionResult> UploadFactura(IFormFile[] file, [FromQuery] string rfcProveedor, string folioOrdenCompra, string folioRecibo, long empresaId)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { mensaje = "Archivo no proporcionado." });
 
-            var archivos = file.Where(f => f != null && f.Length > 0).ToList();
-            if (archivos.Count == 0)
-                return BadRequest(new { mensaje = "Ningún archivo tiene contenido." });
-
-            var xmlFile = archivos.FirstOrDefault(EsArchivoXmlFactura);
-            if (xmlFile == null)
-                return BadRequest(new { mensaje = "Se requiere un archivo XML de factura (CFDI)." });
-
-            FacturaCfdiDocumento factura;
             try
             {
-                using var xmlStream = xmlFile.OpenReadStream();
-                factura = _facturaService.ObtenerFacturaDesdeXml(xmlStream);
+                var response = await _facturaService.ProcesaCargaFactura(rfcProveedor, folioOrdenCompra, folioRecibo, file, empresaId);
+                return Ok(response);
+            }
+            catch (ApiProveedoresException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpPost("finalizar_con_nota")]
+        public async Task<IActionResult> FinalizarConNota(IFormFile[] files, [FromQuery] long procesoId)
+        {
+            try
+            {
+                var response = await _facturaService.FinalizarFacturaConNotaAsync(files, procesoId);
+                return Ok(response);
             }
             catch (ApiProveedoresException ex)
             {
                 return BadRequest(new { mensaje = ex.Message });
             }
 
-            // Validaciones de negocio sobre `factura`
-
-            try
-            {
-                var nombresSubidos = new List<string>();
-                foreach (var doc in archivos)
-                {
-                    using var stream = doc.OpenReadStream();
-                    var fileName = $"{Guid.NewGuid()}_{doc.FileName}";
-                    var uploadedFileName = await _storageService.UploadFilesAsync(stream, fileName);
-                    nombresSubidos.Add(uploadedFileName);
-                }
-
-                return Ok(new
-                {
-                    mensaje = "Archivos subidos correctamente.",
-                    rfcProveedor,
-                    uuid = factura.Uuid,
-                    serie = factura.Comprobante.Serie,
-                    folio = factura.Comprobante.Folio,
-                    rfcEmisor = factura.RfcEmisor,
-                    rfcReceptor = factura.RfcReceptor,
-                    total = factura.Total,
-                    archivos = nombresSubidos
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { mensaje = $"Error al subir el archivo: {ex.Message}" });
-            }
         }
-
-        private static bool EsArchivoXmlFactura(IFormFile doc)
-        {
-            var ext = Path.GetExtension(doc.FileName);
-            if (string.Equals(ext, ".xml", StringComparison.OrdinalIgnoreCase))
-                return true;
-            var ct = doc.ContentType;
-            return !string.IsNullOrEmpty(ct) &&
-                   (ct.Contains("xml", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(ct, "application/xml", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(ct, "text/xml", StringComparison.OrdinalIgnoreCase));
-        }
-
-
     }
 }
