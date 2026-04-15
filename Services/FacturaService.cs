@@ -1,22 +1,23 @@
+using ApiProveedores.Dto.Proveedor;
+using ApiProveedores.Dto.Salida;
+using ApiProveedores.Models;
+using ApiProveedores.Models.Enum;
+using ApiProveedores.Models.Factura;
+using ApiProveedores.Services.Exceptions;
+using ApiProveedores.Services.PubSub;
+using Google.Cloud.PubSub.V1;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
-using ApiProveedores.Dto.Proveedor;
-using ApiProveedores.Dto.Salida;
-using ApiProveedores.Models;
-using ApiProveedores.Models.Factura;
-using ApiProveedores.Services.Exceptions;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Google.Cloud.PubSub.V1;
 using FacturaEntidad = ApiProveedores.Models.Factura.Factura;
-using ApiProveedores.Models.Enum;
-using ApiProveedores.Services.PubSub;
 
 namespace ApiProveedores.Services;
 
@@ -51,6 +52,19 @@ public class FacturaService
         // this is acceptable if source times are local or already normalized. Ensure resulting Kind=Utc.
         var utc = value.ToUniversalTime();
         return DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+    }
+
+    // Método auxiliar para asegurar que DateTime? sea UTC
+    private static DateTime? EnsureUtc(DateTime? dt)
+    {
+        if (!dt.HasValue) return null;
+        return dt.Value.Kind switch
+        {
+            DateTimeKind.Utc => dt,
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc),
+            DateTimeKind.Local => dt.Value.ToUniversalTime(),
+            _ => dt
+        };
     }
 
     /// <summary>
@@ -137,6 +151,18 @@ public class FacturaService
 
         try
         {
+            // se obtiene al proveedor para obtener id y hacer la validación de sobrante en caso de que la factura exceda el monto de la recepción
+            var proveedor = await _proveedoresService.ObtenerInfoProveedorPorRfcAsync(rfcProveedor);
+            var payloadProveedor = proveedor.Values.OfType<ProveedorResponseDto>().FirstOrDefault();
+
+            if (payloadProveedor == null)
+                return new ValidacionFacturaResponseDto
+                {
+                    Message = $"No se encontró un proveedor con el RFC {rfcProveedor}.",
+                    StatusCode = System.Net.HttpStatusCode.NotFound,
+                    Success = false,
+                };
+
             await using var xmlReadStream = xmlFile.OpenReadStream();
             using var xmlMem = new MemoryStream();
             await xmlReadStream.CopyToAsync(xmlMem);
@@ -175,30 +201,6 @@ public class FacturaService
             // Si excede el sobrante, se guarda la factura con estatus "Pendiente Nota" y se solicita nota de crédito.
             if (primeraRecepcion != null && totalFactura > montoRecepcion)
             {
-                ProveedorResponseDto? payloadProveedor;
-                try
-                {
-                    // se obtiene al proveedor para hacer la validación de sobrante en caso de que la factura exceda el monto de la recepción
-                    var proveedor = await _proveedoresService.ObtenerInfoProveedorPorRfcAsync(rfcProveedor);
-                    payloadProveedor = proveedor.Values.OfType<ProveedorResponseDto>().FirstOrDefault();
-                }
-                catch (ApiProveedoresException ex)
-                {
-                    return new ValidacionFacturaResponseDto
-                    {
-                        Message = ex.Message,
-                        StatusCode = System.Net.HttpStatusCode.BadRequest,
-                        Success = false,
-                    };
-                }
-
-                if (payloadProveedor == null)
-                    return new ValidacionFacturaResponseDto
-                    {
-                        Message = $"No se encontró un proveedor con el RFC {rfcProveedor}.",
-                        StatusCode = System.Net.HttpStatusCode.NotFound,
-                        Success = false,
-                    };
 
                 var diferenciaFacturaVsRecepcion = totalFactura - montoRecepcion;
 
@@ -214,22 +216,22 @@ public class FacturaService
 
                 }
 
-                //var (idProveedor, idEmpresa) = await ObtenerIdsProveedorEmpresaAsync(rfcProveedor);
-
                 var motivo =
-                    $"La factura excede el monto de la recepción por {diferenciaFacturaVsRecepcion:C}, lo cual supera el sobrante permitido para este proveedor.";
+                    $"La factura excede el monto de la recepción por {diferenciaFacturaVsRecepcion:C}, por lo cual se solicita nota de crédito.";
 
-                var idFactura = await GuardarFacturaPendienteNotaAsync(
+                //Se guarda factura con estatus pendiente de nota de crédito
+                var idFactura = await GuardarFacturaAsync(
                     facturaCfdi,
                     payloadProveedor.IdProveedor,
                     idEmpresa,
                     primeraRecepcion.IdRecepcion,
                     montoRecepcion,
-                    xmlBytes,
-                    pdfBytes,
+                    Convert.ToBase64String(xmlBytes),
+                    Convert.ToBase64String(pdfBytes),
                     folioOrdenCompra,
                     folioRecibo,
-                    motivo);
+                    motivo,
+                    "Pendiente Nota");
 
                 return new ValidacionFacturaResponseDto
                 {
@@ -241,13 +243,60 @@ public class FacturaService
                 };
             }
 
+            //Si la factura es menor al monto de recepción se valida que no exceda el faltante permitido para el proveedor
+            if(totalFactura < montoRecepcion)
+            {
+                var faltante = montoRecepcion - totalFactura;
+
+                if(faltante > payloadProveedor!.Faltante)
+                {
+                    return new ValidacionFacturaResponseDto
+                    {
+                        Message = $"La factura es menor al monto de la recepción por {faltante:C}, " +
+                                  $"lo cual supera el faltante permitido para este proveedor.",
+                        StatusCode = System.Net.HttpStatusCode.BadRequest,
+                        Success = false,
+                    };
+                }
+            }
+
+            // TODO: validar con PAC si el CFDI es correcto y está timbrado
+
+            // Se guardan los archivos en storage y se obtiene la url para guardar en la base de datos
+            // primero se guarda en storage
+            byte[] xmlFileBytes = ConvertirStreamABytes(xmlReadStream);
+            var urlXmlFactura = await _storageService.UploadFilesAsync(new MemoryStream(xmlFileBytes, writable: false),
+                $"factura_{facturaCfdi.Uuid}_{Guid.NewGuid()}.xml", "xml");
+
+
+            //var pdfFileBytes = pdfFile != null ? ConvertirStreamABytes(pdfFile.OpenReadStream()) : null;
+            string urlPdf = string.Empty;
+            if (pdfFile != null)
+            {
+                await using var pdfStream = pdfFile.OpenReadStream();
+                urlPdf = await _storageService.UploadFilesAsync(pdfStream, $"factura_{facturaCfdi.Uuid}_{Guid.NewGuid()}.pdf", "pdf");
+            }
+
+            //Se guarda factura con estatus finalizada
+            var idFacturaFinalizada = await GuardarFacturaAsync(
+                facturaCfdi,
+                payloadProveedor.IdProveedor,
+                idEmpresa,
+                primeraRecepcion.IdRecepcion,
+                montoRecepcion,
+                urlXmlFactura,
+                urlPdf,
+                folioOrdenCompra,
+                folioRecibo,
+                string.Empty,
+                "Finalizada");
 
             var nombresSubidos = new List<string>();
             foreach (var doc in archivos)
             {
                 using var stream = doc.OpenReadStream();
                 var fileName = $"{Guid.NewGuid()}_{doc.FileName}";
-                var uploadedFileName = await _storageService.UploadFilesAsync(stream, fileName);
+                var uploadedFileName = await _storageService.UploadFilesAsync(stream, fileName, doc.ContentType);
                 nombresSubidos.Add(uploadedFileName);
             }
 
@@ -280,19 +329,20 @@ public class FacturaService
     }
 
     /// <summary>
-    /// Persiste la factura con estatus "Pendiente Nota". XML y PDF se guardan en base64 hasta que se suban a storage y se reemplacen por URL.
+    /// Guarda la factura en la base de datos con la información proporcionada y la relación con la recepción. Retorna el ID de la factura creada.
     /// </summary>
-    private async Task<long> GuardarFacturaPendienteNotaAsync(
+    private async Task<long> GuardarFacturaAsync(
         FacturaCfdiDocumento cfdi,
         long idProveedor,
         long idEmpresa,
         long idRecepcion,
         decimal montoRecepcion,
-        byte[] xmlBytes,
-        byte[]? pdfBytes,
+        string xmlBytes,
+        string? pdfBytes,
         string folioOrdenCompra,
         string noRecepcion,
-        string? motivo)
+        string? motivo,
+        string? estatus)
     {
         var comp = cfdi.Comprobante;
         var subtotal = cfdi.SubTotal ?? 0;
@@ -305,7 +355,7 @@ public class FacturaService
             IdProveedor = idProveedor,
             IdEmpresa = idEmpresa,
             TipoDeComprobante = comp.TipoDeComprobante,
-            EstatusFactura = "Pendiente Nota",
+            EstatusFactura = estatus,
             FolioOrigen = folioOrdenCompra,
             Folio = comp.Folio,
             Serie = comp.Serie,
@@ -319,8 +369,8 @@ public class FacturaService
             Total = total,
             MontoDeRecepcion = montoRecepcion,
             CorreoElectronico = null,
-            Xml = Convert.ToBase64String(xmlBytes),
-            RepresentacionGrafica = pdfBytes is { Length: > 0 } ? Convert.ToBase64String(pdfBytes) : null,
+            Xml = xmlBytes,
+            RepresentacionGrafica = pdfBytes is { Length: > 0 } ? pdfBytes : null,
             UnidadNegocio = null,
             NoOrdenCompra = folioOrdenCompra,
             NoRecepcion = noRecepcion,
@@ -347,7 +397,7 @@ public class FacturaService
         return entity.IdFactura;
     }
 
-    public async Task<ValidacionFacturaResponseDto> FinalizarFacturaConNotaAsync(IFormFile[] files, long idFactura)
+    public async Task<ValidacionFacturaResponseDto> FinalizarFacturaConNotaAsync(IFormFile[] files, long idFactura, string motivo)
     {
         if (files == null || files.Length == 0)
             return new ValidacionFacturaResponseDto
@@ -367,10 +417,10 @@ public class FacturaService
         try
         {
             var archivos = files.Where(f => f != null && f.Length > 0).ToList();
-            var xmlFile = archivos.FirstOrDefault(EsArchivoXmlFactura);
+            var xmlNotaCreditoFile = archivos.FirstOrDefault(EsArchivoXmlFactura);
 
             // Convierte la nota de crédito en un objeto cfdi
-            var facturaNotaCreditoCfdi = await ObtenerFacturaCfdi(xmlFile!);
+            var facturaNotaCreditoCfdi = await ObtenerFacturaCfdi(xmlNotaCreditoFile!);
 
             // Se obtiene informacion de proveedor
             var proveedor = await _proveedoresService.RecuperaProveedorAsync(factura.IdProveedor);
@@ -405,7 +455,7 @@ public class FacturaService
 
             var diferenciaRecepcionNotaCreditoVsTotalFactura = factura.Subtotal - totalRecepcionNotaCredito;
 
-            if (diferenciaRecepcionNotaCreditoVsTotalFactura > 0) 
+            if (diferenciaRecepcionNotaCreditoVsTotalFactura > proveedor.Sobrante) 
             {
                 return new ValidacionFacturaResponseDto
                 {
@@ -417,27 +467,66 @@ public class FacturaService
 
             // No hay diferencia o la diferencia está dentro del sobrante permitido,
             // se guardan los archivo y se actualiza el estatus de la factura a finalizada
-            
+
+            // Se toma el archivo xml y pdf de la bd de la factura y se convierte en stream para subir a storage y obtener url
+            byte[] xmlFacturaBytes = Convert.FromBase64String(factura.Xml!);
+            using var streamFactura = new MemoryStream(xmlFacturaBytes, writable: false);
+
+            var nombreArchivoXml = $"factura_{factura.IdFactura}_{Guid.NewGuid()}.xml";
+            var urlXml = await _storageService.UploadFilesAsync(streamFactura, nombreArchivoXml, "xml");
+            factura.Xml = urlXml;
+            factura.EstatusFactura = "Finalizada";
+
+            if (factura.RepresentacionGrafica is not null)
+            {
+                byte[] pdfFacturaBytes = Convert.FromBase64String(factura.RepresentacionGrafica);
+                using var streamFacturaPdf = new MemoryStream(pdfFacturaBytes, writable: false);
+
+                var nombreArchivoPdf = $"factura_{factura.IdFactura}_{Guid.NewGuid()}.pdf";
+                var urlPdf = await _storageService.UploadFilesAsync(streamFacturaPdf, nombreArchivoPdf, "pdf");
+                factura.RepresentacionGrafica = urlPdf;
+            }
+
+            // se guarda la actualización de las factura con los archivos en storage y estatus finalizada
+            // Convertir todas las fechas a UTC antes de guardar
+            factura.FechaAlta = EnsureUtc(factura.FechaAlta);
+            factura.FechaFactura = EnsureUtc(factura.FechaFactura);
+            factura.FechaRegistro = EnsureUtc(factura.FechaRegistro);
+            factura.FechaContabilizacion = EnsureUtc(factura.FechaContabilizacion);
+            factura.FechaCreacion = EnsureUtc(factura.FechaCreacion) ?? DateTime.UtcNow;
+            factura.FechaModificacion = EnsureUtc(factura.FechaModificacion);
+            _db.Facturas.Update(factura);
+            await _db.SaveChangesAsync();
+
+            // se procede a guardar la nota de crédito con estatus finalizada y los archivos en storage
+            // primero se guarda en storage
+            byte[] xmlFileBytes = ConvertirStreamABytes(xmlNotaCreditoFile!.OpenReadStream());
+            var urlXmlNotaCredito = await _storageService.UploadFilesAsync(new MemoryStream(xmlFileBytes, writable: false), 
+                $"nota_credito_{factura.IdFactura}_{Guid.NewGuid()}.xml", "xml");
 
 
-            byte[]? pdfBytes = null;
             var pdfFile = files.FirstOrDefault(EsArchivoPdf);
+            string urlPdfNotaCredito = string.Empty;
             if (pdfFile != null)
             {
                 await using var pdfStream = pdfFile.OpenReadStream();
-                using var pdfMem = new MemoryStream();
-                await pdfStream.CopyToAsync(pdfMem);
-                pdfBytes = pdfMem.ToArray();
+                urlPdfNotaCredito = await _storageService.UploadFilesAsync(pdfStream, $"nota_credito_{factura.IdFactura}_{Guid.NewGuid()}.pdf","pdf");
             }
-            factura.EstatusFactura = "Finalizada";
-            if (pdfBytes != null && pdfBytes.Length > 0)
-            {
-                factura.HayEvidencia = true;
-                factura.RepresentacionGrafica = Convert.ToBase64String(pdfBytes);
-            }
-            factura.FechaModificacion = DateTime.UtcNow;
-            _db.Facturas.Update(factura);
-            await _db.SaveChangesAsync();
+
+            // Se guarda en BD la nota de crédito con la relación a la factura y recepción, y estatus finalizada
+            var idFacturaNotaCredito = await GuardarFacturaAsync(
+                    facturaNotaCreditoCfdi,
+                    proveedor.Id_proveedor,
+                    factura.IdEmpresa,
+                    long.Parse(factura.NoRecepcion!),
+                    ordenCompraRecepcion.Recepciones.FirstOrDefault()!.Subtotal ?? 0,
+                    urlXmlNotaCredito,
+                    urlXmlNotaCredito,
+                    ordenCompraRecepcion.Folio!,
+                    ordenCompraRecepcion.Recepciones.FirstOrDefault()!.Folio!,
+                    "por diferencia de monto",
+                    "Finalizada");
+
             return new ValidacionFacturaResponseDto
             {
                 Message = "Factura finalizada correctamente.",
@@ -504,5 +593,12 @@ public class FacturaService
 
         var facturaCfdi = ObtenerFacturaDesdeXml(new MemoryStream(xmlBytes, writable: false));
         return facturaCfdi;
+    }
+
+    private byte[] ConvertirStreamABytes(Stream stream)
+    {
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
     }
 }

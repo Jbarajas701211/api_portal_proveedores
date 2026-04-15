@@ -20,17 +20,21 @@ namespace ApiProveedores.Services.PubSub
     public class StorageService
     {
         private readonly string _bucket;
+        private readonly string _baseFolder;
 
         public StorageService(IConfiguration config)
         {
-            _bucket = config["GCP:BucketName"];
+            _bucket = config["GCP:BucketName"] ?? string.Empty;
+            _baseFolder = config["GCP:BaseFolder"] ?? string.Empty;
         }
 
-        public async Task<string> UploadFilesAsync(Stream fileStream, string fileName)
+        public async Task<string> UploadFilesAsync(Stream fileStream, string fileName, string typeFile)
         {
             var storage = await StorageClient.CreateAsync();
 
-            var data = await storage.UploadObjectAsync(_bucket, fileName, null, fileStream);
+            var objectName = $"{_baseFolder}/{typeFile}/{DateTime.Now:yyyy/MM}/{fileName}";
+
+            var data = await storage.UploadObjectAsync(_bucket, objectName, null, fileStream);
 
             return data.Name;
         }

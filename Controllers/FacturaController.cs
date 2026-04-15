@@ -71,11 +71,11 @@ namespace ApiProveedores.Controllers
         }
 
         [HttpPost("finalizar_con_nota")]
-        public async Task<IActionResult> FinalizarConNota(IFormFile[] files, [FromQuery] long procesoId)
+        public async Task<IActionResult> FinalizarConNota(IFormFile[] files, [FromQuery] long procesoId, string motivo)
         {
             try
             {
-                var response = await _facturaService.FinalizarFacturaConNotaAsync(files, procesoId);
+                var response = await _facturaService.FinalizarFacturaConNotaAsync(files, procesoId, motivo);
                 return Ok(response);
             }
             catch (ApiProveedoresException ex)
