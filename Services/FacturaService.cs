@@ -121,32 +121,35 @@ public class FacturaService
         return ObtenerFacturaDesdeXml(ms);
     }
 
-    public async Task<ValidacionFacturaResponseDto> ProcesaCargaFactura(string rfcProveedor, string folioOrdenCompra, string folioRecibo, IFormFile[] file, long idEmpresa)
+    public async Task<ValidacionFacturaResponseDto<bool>> ProcesaCargaFactura(string rfcProveedor, string folioOrdenCompra, string folioRecibo, IFormFile[] file, long idEmpresa)
     {
         if (file == null || file.Length == 0)
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Archivo no proporcionado.",
                 StatusCode = System.Net.HttpStatusCode.BadRequest,
                 Success = false,
+                Data = false
             };
 
         var archivos = file.Where(f => f != null && f.Length > 0).ToList();
         if (archivos.Count == 0)
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Ningún archivo tiene contenido.",
                 StatusCode = System.Net.HttpStatusCode.BadRequest,
                 Success = false,
+                Data = false
             };
 
         var xmlFile = archivos.FirstOrDefault(EsArchivoXmlFactura);
         if (xmlFile == null)
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Se requiere un archivo XML de factura (CFDI).",
                 StatusCode = System.Net.HttpStatusCode.BadRequest,
                 Success = false,
+                Data = false
             };
 
         try
@@ -156,11 +159,12 @@ public class FacturaService
             var payloadProveedor = proveedor.Values.OfType<ProveedorResponseDto>().FirstOrDefault();
 
             if (payloadProveedor == null)
-                return new ValidacionFacturaResponseDto
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = $"No se encontró un proveedor con el RFC {rfcProveedor}.",
                     StatusCode = System.Net.HttpStatusCode.NotFound,
                     Success = false,
+                    Data = false
                 };
 
             await using var xmlReadStream = xmlFile.OpenReadStream();
@@ -182,18 +186,30 @@ public class FacturaService
 
             var ordenCompraRecepcion = await _ordenCompraService.GetOrdenRecepcionSinFacturaAsync(rfcProveedor, folioOrdenCompra);
 
-            //var recepciones = await _ordenCompraService.ObtenerRecepcionesPorIdOcAsync(folioRecibo);
+            // Se valida si ya cuenta con factura asignada a la orden de compra o algún error en la consulta a SAP,
+            // en ambos casos se regresa error para no continuar con el proceso de validación de la factura
+            if (ordenCompraRecepcion is null || !ordenCompraRecepcion.Success)
+            {
+                return new ValidacionFacturaResponseDto<bool>
+                {
+                    Message = ordenCompraRecepcion is null ? "Error al consultar la orden de compra." : ordenCompraRecepcion.Message,
+                    StatusCode = System.Net.HttpStatusCode.BadRequest,
+                    Success = false,
+                    Data = false
+                };
+            }
 
-            if (ordenCompraRecepcion.Recepciones == null || ordenCompraRecepcion.Recepciones.Count == 0)
-                return new ValidacionFacturaResponseDto
+            if (ordenCompraRecepcion.Data!.Recepciones == null || ordenCompraRecepcion.Data!.Recepciones.Count == 0)
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = $"No se encontró una recepción con el folio {folioRecibo}.",
                     StatusCode = System.Net.HttpStatusCode.NotFound,
                     Success = false,
+                    Data = false,
                     Accion = TipoAccionSiguientejEnum.ErrorEnProceso
                 };
 
-            var primeraRecepcion = ordenCompraRecepcion.Recepciones.FirstOrDefault();
+            var primeraRecepcion = ordenCompraRecepcion.Data!.Recepciones.FirstOrDefault();
             var montoRecepcion = primeraRecepcion?.Subtotal ?? 0;
             var totalFactura = facturaCfdi.SubTotal ?? 0;
 
@@ -206,12 +222,13 @@ public class FacturaService
 
                 if (diferenciaFacturaVsRecepcion > payloadProveedor.Sobrante)
                 {
-                    return new ValidacionFacturaResponseDto
+                    return new ValidacionFacturaResponseDto<bool>
                     {
                         Message = $"La factura excede el monto de la recepción por {diferenciaFacturaVsRecepcion:C}, " +
                                   $"lo cual supera el sobrante permitido para este proveedor.",
                         StatusCode = System.Net.HttpStatusCode.BadRequest,
                         Success = false,
+                        Data = false
                     };
 
                 }
@@ -233,11 +250,12 @@ public class FacturaService
                     motivo,
                     "Pendiente Nota");
 
-                return new ValidacionFacturaResponseDto
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = motivo,
                     StatusCode = System.Net.HttpStatusCode.Accepted,
                     Success = false,
+                    Data = false,
                     ProcesoId = idFactura.ToString(CultureInfo.InvariantCulture),
                     Accion = TipoAccionSiguientejEnum.SolicitarNotaCredito
                 };
@@ -250,12 +268,13 @@ public class FacturaService
 
                 if(faltante > payloadProveedor!.Faltante)
                 {
-                    return new ValidacionFacturaResponseDto
+                    return new ValidacionFacturaResponseDto<bool>
                     {
                         Message = $"La factura es menor al monto de la recepción por {faltante:C}, " +
                                   $"lo cual supera el faltante permitido para este proveedor.",
                         StatusCode = System.Net.HttpStatusCode.BadRequest,
                         Success = false,
+                        Data = false
                     };
                 }
             }
@@ -301,29 +320,32 @@ public class FacturaService
             }
 
 
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Validación de factura completada.",
                 StatusCode = System.Net.HttpStatusCode.OK,
                 Success = true,
+                Data = true
             };
         }
         catch (ApiProveedoresException ex)
         {
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = ex.Message,
                 StatusCode = System.Net.HttpStatusCode.BadRequest,
                 Success = false,
+                Data = false
             };
         }
         catch (Exception ex)
         {
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = ex.Message,
                 StatusCode = System.Net.HttpStatusCode.InternalServerError,
-                Success = false
+                Success = false,
+                Data = false
             };
         }
     }
@@ -397,22 +419,24 @@ public class FacturaService
         return entity.IdFactura;
     }
 
-    public async Task<ValidacionFacturaResponseDto> FinalizarFacturaConNotaAsync(IFormFile[] files, long idFactura, string motivo)
+    public async Task<ValidacionFacturaResponseDto<bool>> FinalizarFacturaConNotaAsync(IFormFile[] files, long idFactura, string motivo)
     {
         if (files == null || files.Length == 0)
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Archivo no proporcionado.",
                 StatusCode = System.Net.HttpStatusCode.BadRequest,
                 Success = false,
+                Data = false
             };
         var factura = await _db.Facturas.FindAsync(idFactura);
         if (factura == null)
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = $"No se encontró la factura con ID {idFactura}.",
                 StatusCode = System.Net.HttpStatusCode.NotFound,
                 Success = false,
+                Data = false
             };
         try
         {
@@ -427,11 +451,12 @@ public class FacturaService
 
             if(proveedor is null)
             {
-                return new ValidacionFacturaResponseDto
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = $"No se encontró el proveedor con ID {factura.IdProveedor}.",
                     StatusCode = System.Net.HttpStatusCode.NotFound,
                     Success = false,
+                    Data = false
                 };
             }
 
@@ -441,11 +466,12 @@ public class FacturaService
 
             if(ordenCompraRecepcion is null || ordenCompraRecepcion.Recepciones is null)
             {
-                return new ValidacionFacturaResponseDto
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = $"No se encontró la orden de compra y recepción asociada a la factura.",
                     StatusCode = System.Net.HttpStatusCode.NotFound,
                     Success = false,
+                    Data = false
                 };
             }
 
@@ -457,11 +483,12 @@ public class FacturaService
 
             if (diferenciaRecepcionNotaCreditoVsTotalFactura > proveedor.Sobrante) 
             {
-                return new ValidacionFacturaResponseDto
+                return new ValidacionFacturaResponseDto<bool>
                 {
                     Message = $"La suma de la factura y nota de crédito es menor al monto de la recepción por {diferenciaRecepcionNotaCreditoVsTotalFactura:C}.",
                     StatusCode = System.Net.HttpStatusCode.BadRequest,
                     Success = false,
+                    Data = false
                 };
             }
 
@@ -527,20 +554,22 @@ public class FacturaService
                     "por diferencia de monto",
                     "Finalizada");
 
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = "Factura finalizada correctamente.",
                 StatusCode = System.Net.HttpStatusCode.OK,
                 Success = true,
+                Data = true
             };
         }
         catch (Exception ex)
         {
-            return new ValidacionFacturaResponseDto
+            return new ValidacionFacturaResponseDto<bool>
             {
                 Message = ex.Message,
                 StatusCode = System.Net.HttpStatusCode.InternalServerError,
-                Success = false
+                Success = false,
+                Data = false
             };
         }
     }

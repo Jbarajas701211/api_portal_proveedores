@@ -25,14 +25,14 @@ namespace ApiProveedores.Services
         public async Task<List<RecepcionResponseDto>> ObtenerRecepcionesPorIdOcAsync(string idExterno)
         {
             if (string.IsNullOrWhiteSpace(idExterno))
-                throw new ApiProveedoresException("Orden de compra invùlido.");
+                throw new ApiProveedoresException("Orden de compra invÔøΩlido.");
 
             try
             {
                 var existe = await _context.Recepciones.AnyAsync(x => x.IdRecepcion.ToString() == idExterno);
 
                 if(!existe)
-                    throw new ApiProveedoresException("No se encontrù la orden de compra.");
+                    throw new ApiProveedoresException("No se encontrÔøΩ la orden de compra.");
 
                 var result = await _context.Recepciones
                     .Where(r => r.OrdenCompra.IdExterno == idExterno)
@@ -49,7 +49,7 @@ namespace ApiProveedores.Services
             }
             catch (Exception ex)
             {
-                throw new ApiProveedoresException(ex.Message ?? "Error al obtener informaciùn del RFC.");
+                throw new ApiProveedoresException(ex.Message ?? "Error al obtener informaciÔøΩn del RFC.");
             }
         }
 
@@ -61,8 +61,10 @@ namespace ApiProveedores.Services
             try
             {
                 return await _context.OrdenesCompras
-                    .AnyAsync(o => o.ProveedorId == idProveedor
-                        && !o.Recepciones.Any(r => r.FacturaRecepcion.Any()));
+                        .Include(r => r.Recepciones)
+                        .ThenInclude(fr => fr.FacturaRecepcion)
+                        .AnyAsync(o => o.ProveedorId == idProveedor);
+                    
             }
             catch (Exception ex)
             {
@@ -72,11 +74,11 @@ namespace ApiProveedores.Services
             
         }
 
-        // Obtener ùrdenes de compra que no cuentan con factura (ninguna recepciùon con factura)
+        // Obtener ÔøΩrdenes de compra que no cuentan con factura (ninguna recepciÔøΩon con factura)
         public async Task<List<OrdenCompraSinFacturaDto>> GetOrdenesSinFacturaAsync(string rfcProveedor, string ordenCompra)
         {
             if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra))
-                throw new ApiProveedoresException("La informaciÛn no se est· enviando completa.");
+                throw new ApiProveedoresException("La informaciÔøΩn no se estÔøΩ enviando completa.");
 
             var ordenes = await _context.OrdenesCompras
                 .AsNoTracking()
@@ -88,24 +90,65 @@ namespace ApiProveedores.Services
             return ordenes.Select(MapOrdenSinFactura).ToList();
         }
 
-        public async Task<OrdenCompraSinFacturaDto> GetOrdenRecepcionSinFacturaAsync(string rfcProveedor, string ordenCompra)
+        public async Task<ApiResponseDto<OrdenCompraSinFacturaDto>> GetOrdenRecepcionSinFacturaAsync(string rfcProveedor, string ordenCompra)
         {
             if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra))
-                throw new ApiProveedoresException("La informaciÛn no se est· enviando completa.");
+                throw new ApiProveedoresException("La informaciÔøΩn no se estÔøΩ enviando completa.");
 
-            var ordenes = await _context.OrdenesCompras
+            // Se valida que exista la orden de compra
+            var ordenCompraEnBd = await _context.OrdenesCompras
                 .AsNoTracking()
                 .Include(o => o.Recepciones)
-                .Where(o => o.ProveedorRfc == rfcProveedor
-                    && o.Folio == ordenCompra && !o.Recepciones.Any(r => r.FacturaRecepcion.Any())).FirstOrDefaultAsync();
+                    .ThenInclude(r => r.FacturaRecepcion)
+                    .ThenInclude(f => f.Factura)
+                .FirstOrDefaultAsync(o => o.Folio == ordenCompra && o.ProveedorRfc == rfcProveedor);
 
-            return ordenes != null ? MapOrdenSinFactura(ordenes) : new OrdenCompraSinFacturaDto();
+            if (ordenCompraEnBd is null)
+            {
+                return new ApiResponseDto<OrdenCompraSinFacturaDto>
+                {
+                    Success = false,
+                    Message = "No se encontr√≥ la orden de compra.",
+                    Data = null,
+                    StatusCode = System.Net.HttpStatusCode.NotFound
+                };
+            }
+
+            if(!ordenCompraEnBd.Recepciones.Any())
+            {
+                return new ApiResponseDto<OrdenCompraSinFacturaDto>
+                {
+                    Success = false,
+                    Message = "La orden de compra no cuenta con recepciones asociadas.",
+                    Data = null,
+                    StatusCode = System.Net.HttpStatusCode.NotFound
+                };
+            }
+
+            if(ordenCompraEnBd.Recepciones.FirstOrDefault()!.FacturaRecepcion.Any())
+            {
+                return new ApiResponseDto<OrdenCompraSinFacturaDto>
+                {
+                    Success = false,
+                    Message = "La orden de compra ya cuenta con una factura asociada.",
+                    Data = null,
+                    StatusCode = System.Net.HttpStatusCode.BadRequest
+                };
+            }
+
+            return new ApiResponseDto<OrdenCompraSinFacturaDto>
+            {
+                Success = true,
+                Message = "Orden de compra sin factura encontrada.",
+                Data = MapOrdenSinFactura(ordenCompraEnBd),
+                StatusCode = System.Net.HttpStatusCode.OK
+            };
         }
 
         public async Task<OrdenCompraSinFacturaDto> GetOrdenIdRecepcionAsync(string rfcProveedor, string ordenCompra, long idRecepcion)
         {
             if (string.IsNullOrWhiteSpace(rfcProveedor) || string.IsNullOrWhiteSpace(ordenCompra) || idRecepcion == 0)
-                throw new ApiProveedoresException("La informaciÛn no se est· enviando completa.");
+                throw new ApiProveedoresException("La informaciÔøΩn no se estÔøΩ enviando completa.");
 
             var orden = await _context.OrdenesCompras
                 .AsNoTracking()

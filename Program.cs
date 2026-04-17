@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Http;
 using ApiProveedores.Services.Reportes;
 using ApiProveedores.Services.Citas;
 using ApiProveedores.Services.Citas.Validators;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,6 +151,7 @@ builder.Services.AddControllers(options =>
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
 
 builder.Services.AddEndpointsApiExplorer();

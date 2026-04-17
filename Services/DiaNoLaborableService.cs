@@ -79,7 +79,7 @@ namespace ApiProveedores.Services
             };
         }
 
-        public async Task<ApiResponseDto> ActulizaDiaNoLaborableAsync(DateTime fecha, string descripcion)
+        public async Task<ApiResponseDto<bool>> ActulizaDiaNoLaborableAsync(DateTime fecha, string descripcion)
         {
             var dia = await _context.DiasNoLaborables.FirstOrDefaultAsync(d => d.Fecha == fecha.Date);
             if (dia == null)
@@ -91,10 +91,11 @@ namespace ApiProveedores.Services
             try
             {
                 await _context.SaveChangesAsync();
-                return new ApiResponseDto
+                return new ApiResponseDto<bool>
                 {
                     Success = true,
-                    Message = "Día no laborable actualizado correctamente."
+                    Message = "Día no laborable actualizado correctamente.",
+                    Data = true
                 };
             }
             catch (DbUpdateException ex)

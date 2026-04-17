@@ -34,7 +34,6 @@ namespace ApiProveedores.Models
         public OrdenCompra OrdenCompra { get; set; } = null!;
         public ICollection<RecepcionDetalle> Detalles { get; set; } = new List<RecepcionDetalle>();
 
-        // Collection of factura recepcion; initialize to avoid null warnings
-        public List<FacturaRecepcion> FacturaRecepcion { get; set; } = new();
+        public ICollection<FacturaRecepcion> FacturaRecepcion { get; set; } = new List<FacturaRecepcion>();
     }
 }
