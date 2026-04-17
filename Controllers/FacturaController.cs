@@ -27,6 +27,41 @@ namespace ApiProveedores.Controllers
             _facturaService = facturaService;
         }
 
+        [HttpGet("consultar_facturas")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetFacturasAsync(
+            [FromQuery] int pagina = 1, 
+            [FromQuery] int tamanioPagina = 10, 
+            [FromQuery] DateTime? fechaInicial = null, 
+            [FromQuery] DateTime? fechaFinal = null,
+            [FromQuery] string? estatus = null
+            )
+        {
+            var resultado = await _facturaService.ConsultarFacturasAsync(pagina, tamanioPagina, fechaInicial, fechaFinal, estatus);
+            return Ok(resultado);
+        }
+
+        [HttpGet("consultar_facturas_proveedor")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetFacturasProveedorAsync(
+            [FromQuery] long idProveedor,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int tamanioPagina = 10,
+            [FromQuery] DateTime? fechaInicial = null,
+            [FromQuery] DateTime? fechaFinal = null,
+            [FromQuery] string? estatus = null
+            )
+        {
+            var resultado = await _facturaService.ConsultarFacturasAsync(pagina, tamanioPagina, fechaInicial, fechaFinal, estatus);
+            return Ok(resultado);
+        }
+
         [HttpGet("signed_url")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

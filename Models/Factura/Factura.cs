@@ -50,7 +50,7 @@ namespace ApiProveedores.Models.Factura
         public DateTime? FechaAlta { get; set; }
 
         [Column("fecha_factura")]
-        public DateTime? FechaFactura { get; set; }
+        public DateTime FechaFactura { get; set; }
 
         [Column("subtotal")]
         public decimal Subtotal { get; set; }
@@ -113,5 +113,6 @@ namespace ApiProveedores.Models.Factura
         public DateTime? FechaModificacion { get; set; }
 
         public ICollection<FacturaRecepcion> FacturaRecepcion { get; set; } = new List<FacturaRecepcion>();
+        public Proveedor Proveedor { get; set; }
     }
 }

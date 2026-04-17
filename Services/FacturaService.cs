@@ -1,3 +1,4 @@
+using ApiProveedores.Dto.Paginadores;
 using ApiProveedores.Dto.Proveedor;
 using ApiProveedores.Dto.Salida;
 using ApiProveedores.Models;
@@ -385,7 +386,7 @@ public class FacturaService
             Motivo = motivo,
             HayEvidencia = pdfBytes is { Length: > 0 },
             FechaAlta = ahora,
-            FechaFactura = NormalizeToUtc(cfdi.FechaComprobante),
+            FechaFactura = (DateTime)NormalizeToUtc(cfdi.FechaComprobante),
             Subtotal = subtotal,
             CdTotal = total,
             Total = total,
@@ -517,7 +518,7 @@ public class FacturaService
             // se guarda la actualización de las factura con los archivos en storage y estatus finalizada
             // Convertir todas las fechas a UTC antes de guardar
             factura.FechaAlta = EnsureUtc(factura.FechaAlta);
-            factura.FechaFactura = EnsureUtc(factura.FechaFactura);
+            factura.FechaFactura = (DateTime)EnsureUtc(factura.FechaFactura);
             factura.FechaRegistro = EnsureUtc(factura.FechaRegistro);
             factura.FechaContabilizacion = EnsureUtc(factura.FechaContabilizacion);
             factura.FechaCreacion = EnsureUtc(factura.FechaCreacion) ?? DateTime.UtcNow;
@@ -572,6 +573,45 @@ public class FacturaService
                 Data = false
             };
         }
+    }
+
+    public async Task<ResultadoPaginado<Factura>> ConsultarFacturasAsync(int pagina, int tamanioPagina, DateTime? fechaDesde = null, DateTime? fechaHasta = null, string? estatus = null, long? idProveedor = null)
+    {
+        if (pagina < 1) pagina = 1;
+        if (tamanioPagina < 1) tamanioPagina = 10;
+
+        var query = _db.Facturas        
+            .AsQueryable();
+
+        if (fechaDesde.HasValue)
+            query = query.Where(f => f.FechaFactura >= fechaDesde.Value.ToUniversalTime());
+
+        if (fechaHasta.HasValue)
+            query = query.Where(f => f.FechaFactura <= fechaHasta.Value.ToUniversalTime());
+
+        if (!string.IsNullOrEmpty(estatus))
+            query = query.Where(f => f.EstatusFactura == estatus);
+
+        if (idProveedor.HasValue)
+            query = query.Where(f => f.IdProveedor == idProveedor.Value);
+
+        query = query.OrderBy(f => f.FechaFactura);
+
+        var totalElementos = await query.CountAsync();
+        var totalPaginas = (int)Math.Ceiling(totalElementos / (double)tamanioPagina);
+
+        var elementos = await query
+                        .Skip((pagina - 1) * tamanioPagina)
+                        .Take(tamanioPagina)
+                        .ToListAsync();
+
+        return new ResultadoPaginado<Factura>
+        {
+            PaginaActual = pagina,
+            TotalPaginas = totalPaginas,
+            TotalElementos = totalElementos,
+            Elementos = elementos
+        };
     }
 
     private async Task<(long idProveedor, long idEmpresa)> ObtenerIdsProveedorEmpresaAsync(string rfcProveedor)
