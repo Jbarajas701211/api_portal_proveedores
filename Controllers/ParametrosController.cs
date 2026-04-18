@@ -18,27 +18,22 @@ namespace ApiProveedores.Controllers
             _service = service;
         }
 
-
-        [Authorize(Roles = "LOGISTICA")]
         [HttpPost]
         public async Task<IActionResult> RegistrarParametro([FromBody] ParametroSistemaDto dto)
         {
             await _service.RegistrarParametroAsync(dto);
-            return Ok(new { message = "Par·metro registrado correctamente." });
+            return Ok(new { message = "Par√°metro registrado correctamente." });
         }
 
 
-        [Authorize(Roles = "LOGISTICA")]
         [HttpDelete("{clave}")]
         public async Task<IActionResult> EliminarParametro(string clave)
         {
             await _service.EliminarParametroAsync(clave);
-            return Ok(new { message = "Par·metro eliminado correctamente." });
+            return Ok(new { message = "Par√°metro eliminado correctamente." });
         }
 
 
-
-        [Authorize(Roles = "LOGISTICA")]
         [HttpGet]
         public async Task<IActionResult> ConsultarTodos(
             [FromQuery] int pagina = 1,
@@ -49,7 +44,7 @@ namespace ApiProveedores.Controllers
             return Ok(resultado);
         }
 
-        [Authorize(Roles = "LOGISTICA")]
+
         [HttpPatch]
         public async Task<IActionResult> ActualizarValorParametro([FromBody] ActualizarValorParametroDto dto)
         {

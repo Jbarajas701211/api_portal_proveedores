@@ -216,29 +216,14 @@ public class PortalDbContext : DbContext
 
             entity.HasKey(e => e.IdParametro);
 
-            entity.Property(e => e.IdParametro)
-                .HasColumnName("id")
-                .IsRequired();
-
-            entity.Property(e => e.Valor)
-                .HasColumnName("valor")
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(e => e.Descripcion)
-                .HasColumnName("descripcion")
-                .HasColumnType("text");
-
-            entity.Property(e => e.UnidadMedida)
-                .HasColumnName("unidad_medida")
-                .HasColumnType("text");
-
-            entity.Property(e => e.Notificacion)
-                .HasColumnName("notificacion");
-
-            entity.Property(e => e.Modificacion)
-                .HasColumnName("modificacion")
-                .HasColumnType("timestamp with time zone");
+            entity.Property(e => e.IdParametro).HasColumnName("id").IsRequired();
+            entity.Property(e => e.Codigo).HasColumnName("codigo").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasColumnType("text");
+            entity.Property(e => e.Valor).HasColumnName("valor").HasMaxLength(255).IsRequired();
+            entity.Property(e => e.UnidadMedida).HasColumnName("unidad_medida").HasColumnType("text");
+            entity.Property(e => e.Notificacion).HasColumnName("notificacion");
+            entity.Property(e => e.Modificado).HasColumnName("modificado").HasColumnType("timestamp with time zone");
+            entity.Property(e => e.Estatus).HasColumnName("estatus");
 
             // Relación con Usuario
             entity.Property(e => e.IdUsuario)
@@ -411,6 +396,11 @@ public class PortalDbContext : DbContext
             // Relación Factura ↔ FacturaRecepcion definida en modelBuilder.Entity<FacturaRecepcion>
         });
 
+        modelBuilder.Entity<Factura>()
+            .HasOne(f => f.Proveedor)
+            .WithMany()
+            .HasForeignKey(f => f.IdProveedor)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 
 }

@@ -58,7 +58,7 @@ namespace ApiProveedores.Controllers
             [FromQuery] string? estatus = null
             )
         {
-            var resultado = await _facturaService.ConsultarFacturasAsync(pagina, tamanioPagina, fechaInicial, fechaFinal, estatus);
+            var resultado = await _facturaService.ConsultarFacturasConProveedorPaginadoAsync(pagina, tamanioPagina, idProveedor, fechaInicial, fechaFinal, estatus);
             return Ok(resultado);
         }
 

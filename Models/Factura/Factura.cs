@@ -113,6 +113,6 @@ namespace ApiProveedores.Models.Factura
         public DateTime? FechaModificacion { get; set; }
 
         public ICollection<FacturaRecepcion> FacturaRecepcion { get; set; } = new List<FacturaRecepcion>();
-        public Proveedor Proveedor { get; set; }
+        public Proveedor? Proveedor { get; set; }
     }
 }

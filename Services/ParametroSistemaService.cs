@@ -24,17 +24,17 @@ namespace ApiProveedores.Services
         public async Task ActualizarValorParametroAsync(string clave, string nuevoValor)
         {
             if (string.IsNullOrWhiteSpace(clave))
-                throw new ParametroSistemaException("La clave del parámetro no puede estar vacía.");
+                throw new ParametroSistemaException("La clave del parÃ¡metro no puede estar vacÃ­a.");
 
             if (string.IsNullOrWhiteSpace(nuevoValor))
-                throw new ParametroSistemaException("El nuevo valor no puede estar vacío.");
+                throw new ParametroSistemaException("El nuevo valor no puede estar vacÃ­o.");
 
             var parametro = await _context.ParametrosSistema.FindAsync(clave);
             if (parametro == null)
-                throw new ParametroSistemaException("La clave del parámetro es inválida.");
+                throw new ParametroSistemaException("La clave del parÃ¡metro es invÃ¡lida.");
 
             parametro.Valor = nuevoValor;
-            parametro.Modificacion = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            parametro.Modificado = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ParametrosSistema.Update(parametro);
             await _context.SaveChangesAsync();
@@ -44,11 +44,11 @@ namespace ApiProveedores.Services
         public async Task EliminarParametroAsync(string clave)
         {
             if (string.IsNullOrWhiteSpace(clave))
-                throw new ParametroSistemaException("Para eliminar el parámetro debe de indicar una clave.");
+                throw new ParametroSistemaException("Para eliminar el parÃ¡metro debe de indicar una clave.");
 
             var parametro = await _context.ParametrosSistema.FindAsync(clave);
             if (parametro == null)
-                throw new ParametroSistemaException("La clave del parámetro es inválida.");
+                throw new ParametroSistemaException("La clave del parÃ¡metro es invÃ¡lida.");
 
             _context.ParametrosSistema.Remove(parametro);
             await _context.SaveChangesAsync();
@@ -56,22 +56,26 @@ namespace ApiProveedores.Services
 
         public async Task RegistrarParametroAsync(ParametroSistemaDto dto)
         {
-            if (dto.IdParametro <= 0)
-                throw new ParametroSistemaException("El parámetro debe de incluir una clave (con formato en mayusculas).");
+            if (string.IsNullOrWhiteSpace(dto.Codigo))
+                throw new ParametroSistemaException("El parÃ¡metro debe de incluir una clave (con formato en mayusculas).");
 
             if (string.IsNullOrWhiteSpace(dto.Valor))
-                throw new ParametroSistemaException("El parámetro debe de incluir un valor.");
+                throw new ParametroSistemaException("El parÃ¡metro debe de incluir un valor.");
 
-            var existe = await _context.ParametrosSistema.AnyAsync(p => p.IdParametro == dto.IdParametro);
+            var existe = await _context.ParametrosSistema.AnyAsync(p => p.Codigo == dto.Codigo);
             if (existe)
-                throw new ParametroSistemaException("El parámetro ya existe con la misma clave.");
+                throw new ParametroSistemaException("El parÃ¡metro ya existe con la misma clave.");
 
             var parametro = new ParametroSistema
             {
-                IdParametro = dto.IdParametro,
-                Valor = dto.Valor.ToUpper(),
+                Codigo = dto.Codigo,
                 Descripcion = dto.Descripcion,
-                Modificacion = TimeHelper.NowMexicoUnspecified()
+                Valor = dto.Valor.ToUpper(),
+                UnidadMedida = dto.UnidadMedida,
+                Notificacion = dto.Notificacion,
+                Modificado = null,
+                IdUsuario = 1, // Todo: Reemplazar con el ID del usuario autenticado
+                Estatus = dto.Estatus,
             };
 
             await _context.ParametrosSistema.AddAsync(parametro);
@@ -87,8 +91,13 @@ namespace ApiProveedores.Services
             return new ParametroSistemaDto
             {
                 IdParametro = parametro.IdParametro,
+                Codigo = parametro.Codigo,
+                Descripcion = parametro.Descripcion,
                 Valor = parametro.Valor,
-                Descripcion = parametro.Descripcion
+                UnidadMedida = parametro.UnidadMedida,
+                Notificacion = parametro.Notificacion,
+                Modificado = parametro.Modificado ?? DateTime.MinValue,
+                Estatus = parametro.Estatus
             };
         }
 
@@ -98,9 +107,13 @@ namespace ApiProveedores.Services
             if (parametro == null)
                 return false;
 
-            parametro.Valor = dto.Valor;
+            parametro.Codigo = dto.Codigo;
             parametro.Descripcion = dto.Descripcion;
-            parametro.Modificacion = TimeHelper.NowMexicoUnspecified();
+            parametro.Valor = dto.Valor;
+            parametro.UnidadMedida = dto.UnidadMedida;
+            parametro.Notificacion = dto.Notificacion;
+            parametro.Modificado = TimeHelper.NowMexicoUnspecified();
+            parametro.Estatus = dto.Estatus;
 
             _context.ParametrosSistema.Update(parametro);
             await _context.SaveChangesAsync();
@@ -131,8 +144,12 @@ namespace ApiProveedores.Services
                 .Select(p => new ParametroSistemaDto
                 {
                     IdParametro = p.IdParametro,
+                    Codigo = p.Codigo,
+                    Descripcion = p.Descripcion ?? string.Empty,
                     Valor = p.Valor,
-                    Descripcion = p.Descripcion,
+                    UnidadMedida = p.UnidadMedida,
+                    Notificacion = p.Notificacion,
+                    Estatus = p.Estatus
                 })
                 .ToListAsync();
 

@@ -614,6 +614,71 @@ public class FacturaService
         };
     }
 
+    public async Task<ResultadoPaginado<FacturaConProveedorDto>> ConsultarFacturasConProveedorPaginadoAsync(
+        int pagina, int tamanioPagina, long? idProveedor = null, DateTime? fechaInicio = null, DateTime? fechaFin = null, string ? estatus = null)
+    {
+        var query = _db.Facturas.Include(f => f.Proveedor).AsQueryable();
+
+        if (!string.IsNullOrEmpty(estatus))
+            query = query.Where(f => f.EstatusFactura == estatus);
+        if (idProveedor.HasValue)
+            query = query.Where(f => f.IdProveedor == idProveedor.Value);
+        if (fechaInicio.HasValue)
+            query = query.Where(f => f.FechaFactura >= fechaInicio.Value.ToUniversalTime());
+        if (fechaFin.HasValue)
+            query = query.Where(f => f.FechaFactura <= fechaFin.Value.ToUniversalTime());
+
+        var totalElementos = await query.CountAsync();
+        var totalPaginas = (int)Math.Ceiling(totalElementos / (double)tamanioPagina);
+        var facturas = await query
+            .OrderByDescending(f => f.FechaFactura)
+            .Skip((pagina - 1) * tamanioPagina)
+            .Take(tamanioPagina)
+            .Select(f => new FacturaConProveedorDto
+            {
+                IdFactura = f.IdFactura,
+                IdProveedor = f.IdProveedor,
+                NombreProveedor = f.Proveedor != null ? f.Proveedor.Nombre : null,
+                TipoDeComprobante = f.TipoDeComprobante,
+                EstatusFactura = f.EstatusFactura,
+                FolioOrigen = f.FolioOrigen,
+                Folio = f.Folio,
+                Serie = f.Serie,
+                Uuid = f.Uuid,
+                Motivo = f.Motivo,
+                HayEvidencia = f.HayEvidencia,
+                FechaAlta = f.FechaAlta,
+                FechaFactura = f.FechaFactura,
+                Subtotal = f.Subtotal,
+                CdTotal = f.CdTotal,
+                Total = f.Total,
+                MontoDeRecepcion = f.MontoDeRecepcion,
+                CorreoElectronico = f.CorreoElectronico,
+                Xml = f.Xml,
+                RepresentacionGrafica = f.RepresentacionGrafica,
+                UnidadNegocio = f.UnidadNegocio,
+                NoOrdenCompra = f.NoOrdenCompra,
+                NoRecepcion = f.NoRecepcion,
+                VersionCfdi = f.VersionCfdi,
+                Ieps = f.Ieps,
+                FechaRegistro = f.FechaRegistro,
+                Iva = f.Iva,
+                FolioErp = f.FolioErp,
+                FechaContabilizacion = f.FechaContabilizacion,
+                FechaCreacion = f.FechaCreacion,
+                FechaModificacion = f.FechaModificacion
+            })
+            .ToListAsync();
+
+        return new ResultadoPaginado<FacturaConProveedorDto>
+        {
+            TotalElementos = totalElementos,
+            PaginaActual = pagina,
+            TotalPaginas = totalPaginas,
+            Elementos = facturas
+        };
+    }
+
     private async Task<(long idProveedor, long idEmpresa)> ObtenerIdsProveedorEmpresaAsync(string rfcProveedor)
     {
         var rfcNorm = rfcProveedor.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant();
