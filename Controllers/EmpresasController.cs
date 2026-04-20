@@ -1,3 +1,4 @@
+using ApiProveedores.Dto;
 using ApiProveedores.Dto.Catalogos;
 using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Services;
@@ -13,7 +14,7 @@ namespace ApiProveedores.Controllers
 {
     [ApiController]
     [Authorize]
-    [Route("api/empresas")]
+    [Route("api/catalogos/empresas")]
     public class EmpresasController : ControllerBase
     {
         private readonly EmpresaService _service;
@@ -35,126 +36,51 @@ namespace ApiProveedores.Controllers
             return Ok(resultado);
         }
 
-        [Authorize]
-        [HttpGet]
-        public async Task<IActionResult> GetProveedorByClave([FromQuery] string? claveProveedor)
+        [HttpPost]
+        public async Task<IActionResult> CrearEmpresa([FromBody] EmpresaDto dto)
         {
-            var resultado = await _service.RecuperaProveedorAsync(claveProveedor);
-            return Ok(resultado);
-        }
-
-        [Authorize]
-        [HttpPut]
-        public async Task<IActionResult> UpdateProveedor([FromBody] ProveedorDto proveedorDto)
-        {
-            if (proveedorDto == null)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
             try
             {
-                var actualizado = await _service.ActualizarProveedorAsync(proveedorDto);
-
-                if (actualizado)
-                    return Ok(new { mensaje = "Proveedor actualizado correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo actualizar el registro." });
-            }
-            catch (ApiProveedores.Services.Exceptions.ApiProveedoresException appEx)
-            {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo actualizar el registro." });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo actualizar el registro." });
-            }
-        }
-
-        [Authorize]
-        [HttpGet("documentos")]
-        public async Task<IActionResult> GetDocumentosByProveedor([FromQuery] long idProveedor)
-        {
-            var resultado = await _service.ObtenerDocumentosPorProveedorAsync(idProveedor);
-            return Ok(resultado);
-        }
-
-        [Authorize]
-        [HttpPost("documentos")]
-        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> AddDocumentoProveedor([FromBody] List<ProveedorDocumentoDto> dtos)
-        {
-            if (dtos == null || dtos.Count == 0)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
-            try
-            {
-                var creado = await _service.AgregarDocumentosProveedorAsync(dtos);
-                if (creado)
-                    return Ok(new { mensaje = "Documento(s) asociado(s) al proveedor correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo asociar los documentos al proveedor." });
+                var empresa = await _service.CrearEmpresaAsync(dto);
+                return CreatedAtAction(nameof(Buscar), new { id = empresa.IdEmpresa }, empresa);
             }
             catch (ApiProveedoresException appEx)
             {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo asociar los documentos al proveedor." });
+                return BadRequest(appEx.Message);
             }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo asociar los documentos al proveedor." });
-            }
+           
         }
 
-        [Authorize]
-        [HttpDelete("documentos")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteDocumentoProveedor([FromQuery] long idProveedor, [FromQuery] int documentoId)
+        [HttpPatch]
+        public async Task<IActionResult> ActualizarEmpresa([FromBody] EmpresaDto dto)
         {
             try
             {
-                var eliminado = await _service.EliminarDocumentoProveedorAsync(idProveedor, documentoId);
-                if (eliminado)
-                    return Ok(new { mensaje = "Documento desasociado del proveedor correctamente." });
-
-                return BadRequest(new { mensaje = "No se pudo desasociar el documento del proveedor." });
+                var empresa = await _service.ActualizarEmpresaAsync(dto);
+                if (empresa == null) return NotFound();
+                return Ok(empresa);
             }
             catch (ApiProveedoresException appEx)
             {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo desasociar el documento del proveedor." });
+                return BadRequest(appEx.Message);
             }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo desasociar el documento del proveedor." });
-            }
+
         }
 
-        [Authorize]
-        [HttpPut("documentos")]
-        public async Task<IActionResult> UpdateDocumentoProveedor([FromBody] List<ProveedorDocumentoDto> dtos)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> EliminarEmpresa(int id)
         {
-            if (dtos == null || dtos.Count == 0)
-                return BadRequest(new { mensaje = "Datos inválidos." });
-
             try
             {
-                var actualizado = await _service.ActualizarDocumentosProveedorAsync(dtos);
-                if (actualizado)
-                    return Ok(new { mensaje = "Documento(s) del proveedor actualizado(s) correctamente." });
+                var eliminado = await _service.EliminarEmpresaAsync(id);
+                if (!eliminado) return NotFound();
+                return NoContent();
+            }
+            catch (ApiProveedoresException appEx)
+            {
+                return BadRequest(appEx.Message);
+            }
 
-                return BadRequest(new { mensaje = "No se pudo actualizar los documentos del proveedor." });
-            }
-            catch (ApiProveedores.Services.Exceptions.ApiProveedoresException appEx)
-            {
-                return BadRequest(new { mensaje = appEx.Message ?? "No se pudo actualizar los documentos del proveedor." });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { mensaje = "No se pudo actualizar los documentos del proveedor." });
-            }
         }
     }
 }
