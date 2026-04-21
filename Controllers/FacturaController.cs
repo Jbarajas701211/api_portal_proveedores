@@ -119,5 +119,19 @@ namespace ApiProveedores.Controllers
             }
 
         }
+
+        [HttpPost("carga_masiva_facturas")]
+        public async Task<IActionResult> CargaMasivaFacturas(IFormFile listadoFacturasExcel, IFormFile archivoZip, string rfcProveedor, string emailProveedor)
+        {
+            try
+            {
+                var response = await _facturaService.CargaMasivaFacturasAsync(listadoFacturasExcel, archivoZip, rfcProveedor, emailProveedor);
+                return Ok(response);
+            }
+            catch (ApiProveedoresException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+        }
     }
 }

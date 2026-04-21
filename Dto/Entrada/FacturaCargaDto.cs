@@ -9,5 +9,7 @@
         public string? UuidNc { get; set; }
         public string? Serie { get; set; }
         public string? Folio { get; set; }
+        public string? MontoRecepcion { get; set; }
+        public string? Documento { get; set; }
     }
 }

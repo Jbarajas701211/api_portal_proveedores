@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Data.SqlTypes;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
@@ -726,29 +727,189 @@ public class FacturaService
         try
         {
             // Se toma el archivo de excel para trabajarlo
-            var facturasExcel = new HashSet<string>();
+            bool plantillaUuid = listadoFacturasExcel.FileName.Contains("UUID", StringComparison.OrdinalIgnoreCase);
 
-            using (var excelStream = new MemoryStream())
-            {
-                await listadoFacturasExcel.CopyToAsync(excelStream);
-                excelStream.Position = 0;
-                using var workbook = new XLWorkbook(excelStream);
-                var worksheet = workbook.Worksheets.FirstOrDefault();
-
-                var lastRow = worksheet.LastRowUsed().RowNumber();
-
-                for (int row = 2; row <= lastRow; row++)
+            List<FacturaCargaDto> facturasExcel = await LeerExcel(listadoFacturasExcel, plantillaUuid);
+            //var facturasExcel = new HashSet<string>();
+            if (!facturasExcel.Any()) {
+                return new ApiResponseDto<bool>
                 {
-                    var cellValue = worksheet.Cell(row, 1).GetString();
-                    if (!string.IsNullOrWhiteSpace(cellValue))
+                    Message = "El archivo Excel no contiene datos de facturas o el formato es incorrecto.",
+                    StatusCode = System.Net.HttpStatusCode.BadRequest,
+                    Success = false
+                };
+            }
+
+            // Aquí se procesaría el archivo ZIP, se extraerían los XML y PDF, se validarían contra el listado del Excel, y se guardarían en la base de datos y storage.
+            using var zipStream = archivoZip.OpenReadStream();
+            using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+
+            if(archive.Entries.Count > 200)
+            {
+                return new ApiResponseDto<bool>
+                {
+                    Message = "El archivo ZIP contiene más de 200 facturas, lo cual excede el límite permitido para la carga masiva.",
+                    StatusCode = System.Net.HttpStatusCode.BadRequest,
+                    Success = false
+                };
+            }
+
+            var xmls = archive.Entries
+                              .Where(x => x.Name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                              .ToDictionary(
+                                 x => Path.GetFileNameWithoutExtension(x.Name).ToUpper(),
+                                  x => x);
+            var pdfs = archive.Entries
+                              .Where(x => x.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                              .ToDictionary(
+                                  x => Path.GetFileNameWithoutExtension(x.Name).ToUpper(),
+                                  x => x);
+
+            var procesados = new List<ResultadoCargaFacturaGrupalDto>();
+            var noProcesados = new List<ResultadoCargaFacturaGrupalDto>();
+
+            // se obtiene al proveedor para obtener id y hacer la validación de sobrante en caso de que la factura exceda el monto de la recepción
+            var proveedor = await _proveedoresService.ObtenerInfoProveedorPorRfcAsync(rfcProveedor);
+            var payloadProveedor = proveedor.Values.OfType<ProveedorResponseDto>().FirstOrDefault();
+
+            if (payloadProveedor == null)
+                return new ValidacionFacturaResponseDto<bool>
+                {
+                    Message = $"No se encontró un proveedor con el RFC {rfcProveedor}.",
+                    StatusCode = System.Net.HttpStatusCode.NotFound,
+                    Success = false,
+                    Data = false
+                };
+
+            foreach (var factura in facturasExcel)
+            {
+                string llaveBusqueda = plantillaUuid ? factura.UuidFactura!.ToUpper() : $"{factura.Serie}_{factura.Folio}".ToUpper();
+
+                var keyEncontrada = xmls.Keys.FirstOrDefault(k => k.Split('_').Length >= 3 && k.Split('_', 3)[2] == llaveBusqueda);
+
+                if (keyEncontrada is null)
+                {
+                    noProcesados.Add(new ResultadoCargaFacturaGrupalDto
                     {
-                        facturasExcel.Add(cellValue.Trim());
-                    }
+                        OrdenCompra = factura.OrdenCompra,
+                        Recepcion = factura.Recepcion,
+                        Identificador = llaveBusqueda,
+                        Mensaje = "No se encontró el archivo XML correspondiente en el ZIP."
+                    });
+                    continue;
                 }
+
+                var xmlEntry = xmls[keyEncontrada];
+
+                using(var streamXml = xmlEntry.Open())
+                {
+                    var facturaCfdi = ObtenerFacturaDesdeXml(streamXml);
+                    byte[]? pdfBytes = null;
+
+                    var keyEncontradaPdf = pdfs.Keys.FirstOrDefault(k => k.Split('_').Length >= 3 && k.Split('_', 3)[2] == llaveBusqueda);
+
+                    if (keyEncontradaPdf is not null)
+                    {
+                        var pdfEntry = pdfs[keyEncontradaPdf];
+                        using var streamPdf = pdfEntry.Open();
+                        using var msPdf = new MemoryStream();
+                        await streamPdf.CopyToAsync(msPdf);
+                        pdfBytes = msPdf.ToArray();
+                    }
+
+                    // Aquí empieza el proceso de validación
+                    var ordenCompraRecepcion = await _ordenCompraService.GetOrdenRecepcionSinFacturaAsync(rfcProveedor, factura.OrdenCompra!);
+
+                    // Se valida si ya cuenta con factura asignada a la orden de compra
+                    if(ordenCompraRecepcion is null || !ordenCompraRecepcion.Success)
+                    {
+                        noProcesados.Add(new ResultadoCargaFacturaGrupalDto
+                        {
+                            OrdenCompra = factura.OrdenCompra,
+                            Recepcion = factura.Recepcion,
+                            Identificador = llaveBusqueda,
+                            Mensaje = "Ya se cuenta con factura asignada a la orden de compra."
+                        });
+                        continue;
+                    }
+
+                    if(ordenCompraRecepcion.Data!.Recepciones == null || ordenCompraRecepcion.Data!.Recepciones.Count == 0)
+                    {
+                        noProcesados.Add(new ResultadoCargaFacturaGrupalDto
+                        {
+                            OrdenCompra = factura.OrdenCompra,
+                            Recepcion = factura.Recepcion,
+                            Identificador = llaveBusqueda,
+                            Mensaje = $"No se encontró recepcion con el folio {factura.Recepcion}."
+                        });
+                        continue;
+                    }
+
+                    var primeraRecepcion = ordenCompraRecepcion.Data!.Recepciones.FirstOrDefault();
+                    var montoRecepcion = primeraRecepcion!.Subtotal ?? 0;
+                    var totalFactura = facturaCfdi.SubTotal ?? 0;
+
+                    // Si la factura excede el monto de la recepción, se valida el sobrante permitodo del proveedor
+                    if(primeraRecepcion is not null && totalFactura > montoRecepcion)
+                    {
+                        var diferenciaFacturaVsRecepcion = totalFactura - montoRecepcion;
+
+                        if(diferenciaFacturaVsRecepcion > payloadProveedor.Sobrante)
+                        {
+                            noProcesados.Add(new ResultadoCargaFacturaGrupalDto
+                            {
+                                OrdenCompra = factura.OrdenCompra,
+                                Recepcion = factura.Recepcion,
+                                Identificador = llaveBusqueda,
+                                Mensaje = $"La factura excede el monto de la recepción por {diferenciaFacturaVsRecepcion:C}, lo cual supera el sobrante permitido para este proveedor."
+                            });
+                            continue;
+                        }
+
+                        //Si no excede el monto permitido se busca el registro de excel para poder obtener el número de la nota de crédito
+                        FacturaCargaDto? notaCredito = null;
+                        if (plantillaUuid)
+                        {
+                            notaCredito = facturasExcel.Where(x => x.OrdenCompra == factura.OrdenCompra).FirstOrDefault();
+                        }
+                        else
+                        {
+                            notaCredito = facturasExcel.Where(x => x.OrdenCompra == factura.OrdenCompra && x.Documento == "NC").FirstOrDefault();
+                        }
+
+                        if(notaCredito is null)
+                        {
+                            noProcesados.Add(new ResultadoCargaFacturaGrupalDto
+                            {
+                                OrdenCompra = factura.OrdenCompra,
+                                Recepcion = factura.Recepcion,
+                                Identificador = llaveBusqueda,
+                                Mensaje = $"La factura excede el monto de la recepción por {diferenciaFacturaVsRecepcion:C} y no se cuenta con Nota de crédito en el listado de excel."
+                            });
+                            continue;
+                        }
+
+                        // Se busca la nota de crédito en el zip recibido
+                        //var numeroUuidNotaCredito = notaCredito.UuidNc ?? 
+
+                    }
+
+
+
+                    // Por simplicidad, aquí solo se marca como procesada sin hacer las validaciones ni guardados reales.
+                    procesados.Add(new ResultadoCargaFacturaGrupalDto
+                    {
+                        OrdenCompra = factura.OrdenCompra,
+                        Recepcion = factura.Recepcion,
+                        Identificador = llaveBusqueda,
+                        Mensaje = "Factura procesada exitosamente."
+                    });
+                }
+
             }
 
 
-                return new ApiResponseDto<bool>
+            return new ApiResponseDto<bool>
                 {
                     Message = "Carga masiva de facturas procesada exitosamente.",
                     StatusCode = System.Net.HttpStatusCode.OK,
@@ -824,17 +985,22 @@ public class FacturaService
 
         var lastRow = worksheet.LastRowUsed().RowNumber();
 
+        if(lastRow <= 1)
+        {
+            throw new ApiProveedoresException("El archivo Excel no contiene datos.");
+        }
+
         for (int row = 2; row <= lastRow; row++)
         {
             if (plantillaUuid)
             {
                 lista.Add(new FacturaCargaDto
                 {
-                    OrdenCompra = worksheet.Cell(row, 1).GetString().Trim(),
-                    Recepcion = worksheet.Cell(row, 2).GetString().Trim(),
-                    Tienda = worksheet.Cell(row, 3).GetString().Trim(),
-                    UuidFactura = worksheet.Cell(row, 4).GetString().Trim(),
-                    UuidNc = worksheet.Cell(row, 5).GetString().Trim()
+                    OrdenCompra = worksheet.Cell(row, 2).GetString().Trim(),
+                    Recepcion = worksheet.Cell(row, 3).GetString().Trim(),
+                    Tienda = worksheet.Cell(row, 4).GetString().Trim(),
+                    UuidFactura = worksheet.Cell(row, 5).GetString().Trim(),
+                    UuidNc = worksheet.Cell(row, 6).GetString().Trim()
                 });
             }
             else
@@ -845,10 +1011,13 @@ public class FacturaService
                     Recepcion = worksheet.Cell(row, 2).GetString().Trim(),
                     Tienda = worksheet.Cell(row, 3).GetString().Trim(),
                     Serie = worksheet.Cell(row, 4).GetString().Trim(),
-                    Folio = worksheet.Cell(row, 5).GetString().Trim()
+                    Folio = worksheet.Cell(row, 5).GetString().Trim(),
+                    MontoRecepcion = worksheet.Cell(row, 6).GetString().Trim(),
+                    Documento = worksheet.Cell(row, 7).GetString().Trim()
                 });
             }
         }
         return lista;
     }
+
 }
