@@ -1,3 +1,4 @@
+using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Dto.Paginadores;
 using ApiProveedores.Dto.Proveedor;
 using ApiProveedores.Dto.Salida;
@@ -6,6 +7,7 @@ using ApiProveedores.Models.Enum;
 using ApiProveedores.Models.Factura;
 using ApiProveedores.Services.Exceptions;
 using ApiProveedores.Services.PubSub;
+using ClosedXML.Excel;
 using Google.Cloud.PubSub.V1;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -679,21 +681,91 @@ public class FacturaService
         };
     }
 
-    private async Task<(long idProveedor, long idEmpresa)> ObtenerIdsProveedorEmpresaAsync(string rfcProveedor)
+    public async Task<ApiResponseDto<bool>> CargaMasivaFacturasAsync(IFormFile listadoFacturasExcel, IFormFile archivoZip, string rfcProveedor, string emailProveedor)
     {
-        var rfcNorm = rfcProveedor.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant();
-        var prov = await _db.Proveedores
-            .Include(p => p.ProveedorEmpresa)
-            .FirstOrDefaultAsync(p => p.Rfc != null && p.Rfc.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant() == rfcNorm);
+        if(listadoFacturasExcel == null || listadoFacturasExcel.Length == 0)
+        {
+            return new ApiResponseDto<bool>
+            {
+                Message = "Archivo de listado de facturas no proporcionado.",
+                StatusCode = System.Net.HttpStatusCode.BadRequest,
+                Success = false
+            };
+        }
 
-        if (prov == null)
-            throw new ApiProveedoresException($"No se encontró un proveedor con el RFC {rfcProveedor}.");
+        if(archivoZip == null || archivoZip.Length == 0)
+        {
+            return new ApiResponseDto<bool>
+            {
+                Message = "Archivo ZIP con facturas no proporcionado.",
+                StatusCode = System.Net.HttpStatusCode.BadRequest,
+                Success = false
+            };
+        }
 
-        var idEmpresa = prov.ProveedorEmpresa?.OrderBy(pe => pe.IdRelacionPE).FirstOrDefault()?.IdEmpresa ?? 0;
-        if (idEmpresa == 0)
-            throw new ApiProveedoresException("El proveedor no tiene empresa asociada.");
+        if(!Path.GetExtension(listadoFacturasExcel.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApiResponseDto<bool>
+            {
+                Message = "El archivo de listado de facturas debe ser un archivo Excel (.xlsx).",
+                StatusCode = System.Net.HttpStatusCode.BadRequest,
+                Success = false
+            };
+        }
 
-        return (prov.Id_proveedor, idEmpresa);
+        if(!Path.GetExtension(archivoZip.FileName).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApiResponseDto<bool>
+            {
+                Message = "El archivo con facturas debe ser un archivo ZIP (.zip).",
+                StatusCode = System.Net.HttpStatusCode.BadRequest,
+                Success = false
+            };
+        }
+
+        try
+        {
+            // Se toma el archivo de excel para trabajarlo
+            var facturasExcel = new HashSet<string>();
+
+            using (var excelStream = new MemoryStream())
+            {
+                await listadoFacturasExcel.CopyToAsync(excelStream);
+                excelStream.Position = 0;
+                using var workbook = new XLWorkbook(excelStream);
+                var worksheet = workbook.Worksheets.FirstOrDefault();
+
+                var lastRow = worksheet.LastRowUsed().RowNumber();
+
+                for (int row = 2; row <= lastRow; row++)
+                {
+                    var cellValue = worksheet.Cell(row, 1).GetString();
+                    if (!string.IsNullOrWhiteSpace(cellValue))
+                    {
+                        facturasExcel.Add(cellValue.Trim());
+                    }
+                }
+            }
+
+
+                return new ApiResponseDto<bool>
+                {
+                    Message = "Carga masiva de facturas procesada exitosamente.",
+                    StatusCode = System.Net.HttpStatusCode.OK,
+                    Success = true,
+                    Data = true
+                };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponseDto<bool>
+            {
+                Message = $"Error al procesar la carga masiva de facturas: {ex.Message}",
+                StatusCode = System.Net.HttpStatusCode.InternalServerError,
+                Success = false,
+                Data = false
+            };
+        }
     }
 
     private static bool EsArchivoPdf(IFormFile doc)
@@ -734,5 +806,49 @@ public class FacturaService
         using var ms = new MemoryStream();
         stream.CopyTo(ms);
         return ms.ToArray();
+    }
+
+    private async Task<List<FacturaCargaDto>> LeerExcel(IFormFile file, bool plantillaUuid)
+    {
+        var lista = new List<FacturaCargaDto>();
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        ms.Position = 0;
+
+        using var workbook = new XLWorkbook(ms);
+        var worksheet = workbook.Worksheets.FirstOrDefault();
+
+        if(worksheet == null)
+            throw new ApiProveedoresException("El archivo Excel no contiene ninguna hoja.");
+
+        var lastRow = worksheet.LastRowUsed().RowNumber();
+
+        for (int row = 2; row <= lastRow; row++)
+        {
+            if (plantillaUuid)
+            {
+                lista.Add(new FacturaCargaDto
+                {
+                    OrdenCompra = worksheet.Cell(row, 1).GetString().Trim(),
+                    Recepcion = worksheet.Cell(row, 2).GetString().Trim(),
+                    Tienda = worksheet.Cell(row, 3).GetString().Trim(),
+                    UuidFactura = worksheet.Cell(row, 4).GetString().Trim(),
+                    UuidNc = worksheet.Cell(row, 5).GetString().Trim()
+                });
+            }
+            else
+            {
+                lista.Add(new FacturaCargaDto
+                {
+                    OrdenCompra = worksheet.Cell(row, 1).GetString().Trim(),
+                    Recepcion = worksheet.Cell(row, 2).GetString().Trim(),
+                    Tienda = worksheet.Cell(row, 3).GetString().Trim(),
+                    Serie = worksheet.Cell(row, 4).GetString().Trim(),
+                    Folio = worksheet.Cell(row, 5).GetString().Trim()
+                });
+            }
+        }
+        return lista;
     }
 }
