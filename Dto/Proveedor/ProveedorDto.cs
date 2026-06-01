@@ -14,6 +14,7 @@ namespace ApiProveedores.Dto.Proveedor
         public decimal Faltante { get; set; }
         public decimal FaltantePorcentaje { get; set; }
         public bool AplicarTolerancia { get; set; }
+        public string? Email { get; set; }
         public  List<EmpresaDto>? Empresas { get; set; }
 
     }

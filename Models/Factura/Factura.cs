@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using ApiProveedores.Models.Enum;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ApiProveedores.Models.Factura
@@ -21,7 +22,7 @@ namespace ApiProveedores.Models.Factura
 
         [MaxLength(50)]
         [Column("estatus_factura")]
-        public string? EstatusFactura { get; set; }
+        public EstatusFacturaEnum? EstatusFactura { get; set; }
 
         [MaxLength(50)]
         [Column("folio_origen")]
@@ -102,6 +103,14 @@ namespace ApiProveedores.Models.Factura
         [MaxLength(50)]
         [Column("folio_erp")]
         public string? FolioErp { get; set; }
+
+        [MaxLength(13)]
+        [Column("rfc_proveedor")]
+        public string? RfcProveedor { get; set; }
+
+        [MaxLength(50)]
+        [Column("numero_factura_relacionada")]
+        public string? NumeroFacturaRelacionado { get; set; }
 
         [Column("fecha_contabilizacion")]
         public DateTime? FechaContabilizacion { get; set; }

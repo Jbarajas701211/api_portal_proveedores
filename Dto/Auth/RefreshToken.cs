@@ -12,7 +12,7 @@ namespace ApiProveedores.Dto.Auth
         public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
         public DateTime ExpiraEn { get; set; }
         public DateTime? RevocadoEn { get; set; }
-        public string ReemplazadoPor { get; set; }
+        public string? ReemplazadoPor { get; set; }
         public bool EstaActivo => RevocadoEn == null && ExpiraEn > DateTime.UtcNow;
 
         public Usuario Usuario { get; set; }

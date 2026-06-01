@@ -131,5 +131,21 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromQuery] string refreshToken)
+    {
+        try
+        {
+            await _authService.LogoutAsync(refreshToken);
+            return Ok(new { message = "Logout exitoso" });
+        }
+        catch (Exception)
+        {
+
+            return Unauthorized(new { message = "Refresh token inválido o expirado" });
+        }
+      
+    }
+
 
 }

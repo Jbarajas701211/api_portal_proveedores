@@ -4,7 +4,7 @@ namespace ApiProveedores.Services.Exceptions
 {
     public class AltaCuentaException : ApiProveedoresException
     {
-        private const string DefaultMessage = "El email ya est� registrado.";
+        private const string DefaultMessage = "El email ya está registrado.";
 
         public AltaCuentaException() : base(DefaultMessage) { }
 

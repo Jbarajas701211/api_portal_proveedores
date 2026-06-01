@@ -36,9 +36,17 @@ namespace ApiProveedores.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> GetProveedorByClave([FromQuery] string? claveProveedor)
+        public async Task<IActionResult> GetProveedorById([FromQuery] int idProveedor)
         {
-            var resultado = await _service.RecuperaProveedorAsync(claveProveedor);
+            var resultado = await _service.RecuperaProveedorPorIdAsync(idProveedor);
+            return Ok(resultado);
+        }
+
+        [Authorize]
+        [HttpGet("obtener_proveedor_por_rfc")]
+        public async Task<IActionResult> GetProveedorByRfc([FromQuery] string rfc)
+        {
+            var resultado = await _service.ObtenerInfoProveedorPorRfcAsync(rfc);
             return Ok(resultado);
         }
 
@@ -91,6 +99,33 @@ namespace ApiProveedores.Controllers
             try
             {
                 var resultado = await _service.ObtenerInfoProveedorPorRfcAsync(rfc);
+                return Ok(resultado);
+            }
+            catch (ApiProveedoresException appEx)
+            {
+                return NotFound(new { mensaje = appEx.Message ?? "Proveedor no encontrado o sin empresas asociadas." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { mensaje = "Error interno al validar el RFC." });
+            }
+        }
+
+        // Reemplazar el método ValidarRfc por este
+        [Authorize]
+        [HttpGet("existe_rfc")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ExisteRfc([FromQuery] string rfc)
+        {
+            if (string.IsNullOrWhiteSpace(rfc))
+                return BadRequest(new { mensaje = "RFC inválido." });
+
+            try
+            {
+                var resultado = await _service.ExisteRfcAsync(rfc);
                 return Ok(resultado);
             }
             catch (ApiProveedoresException appEx)

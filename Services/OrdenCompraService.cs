@@ -60,11 +60,23 @@ namespace ApiProveedores.Services
 
             try
             {
-                return await _context.OrdenesCompras
+                var respuesta = false;
+                var tieneOrdenesCompra = await _context.OrdenesCompras
                         .Include(r => r.Recepciones)
                         .ThenInclude(fr => fr.FacturaRecepcion)
-                        .AnyAsync(o => o.ProveedorId == idProveedor);
+                        .Where(o => o.ProveedorId == idProveedor)
+                        .AnyAsync();
                     
+                if(tieneOrdenesCompra)
+                {
+                    var ordenesCompraSinFactura = await _context.OrdenesCompras
+                        .Include(r => r.Recepciones)
+                        .ThenInclude(fr => fr.FacturaRecepcion)
+                        .Where(o => o.ProveedorId == idProveedor && o.Recepciones.Any(r => !r.FacturaRecepcion.Any()))
+                        .ToListAsync();
+                    respuesta = ordenesCompraSinFactura.Any();
+                }
+                return respuesta;
             }
             catch (Exception ex)
             {
@@ -194,5 +206,29 @@ namespace ApiProveedores.Services
                     .ToList()
             };
         }
+
+        public async Task<ApiResponseDto<List<Recepcion>>> GetRecepcionesSinFacturaAsync(string rfcProveedor, DateTime? fechaInicial, DateTime? fechaFinal)
+        {
+            if (string.IsNullOrWhiteSpace(rfcProveedor))
+                throw new ApiProveedoresException("La información no se está enviando completa.");
+
+            // Se valida que exista la orden de compra
+            var recepciones = await _context.Recepciones
+                .AsNoTracking()
+                .Where(o => o.ProveedorRfc == rfcProveedor
+                    && !o.FacturaRecepcion.Any())
+                .ToListAsync();
+
+            return new ApiResponseDto<List<Recepcion>>
+            {
+                Success = true,
+                Message = "Recepciones sin factura encontradas.",
+                Data = recepciones,
+                StatusCode = System.Net.HttpStatusCode.OK
+            };
+
+           
+        }
+
     }
 }

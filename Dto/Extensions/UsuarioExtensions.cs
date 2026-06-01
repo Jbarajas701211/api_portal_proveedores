@@ -11,9 +11,10 @@ namespace ApiProveedores.Dto.Extensions
             {
                 Id = user.IdUsuario,
                 Email = user.CorreoElectronico,
-                NombreCompleto = user.Nombre,
-                Rol = "Anonimo",
-                ProveedorId = 1
+                Nombre = user.Nombre,
+                ApellidoPaterno = user.ApellidoPaterno,
+                ApellidoMaterno = user.ApellidoMaterno,
+                Rol = "Anonimo"
             };
         }
     }

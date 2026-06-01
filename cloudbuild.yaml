@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/marti-api-proveedores-core/marti-api-proveedores-core', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/portal-proveedores-api-core', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-central1-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/marti-api-proveedores-core/marti-api-proveedores-core']
+    args: ['push', 'gcr.io/$PROJECT_ID/portal-proveedores-api-core']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
@@ -13,26 +13,20 @@ steps:
       - PROVEEDORES_API_CORE_DB_PASSWORD
       - PROVEEDORES_API_CORE_DB_PORT
       - PROVEEDORES_API_CORE_DB_USER
-      - PROVEEDORES_API_CORE_JWT_SECRET_KEY
-      - PROVEEDORES_API_CORE_PNJ_COLA
-      - PROVEEDORES_API_CORE_LLAVE_CIFRADO
-      - PROVEEDORES_API_CORE_DATA_PROCESSING_COLA
-      - PROVEEDORES_API_CORE_DATA_REPORTING_COLA
     args:
       - '-c'
       - |
         gcloud run deploy proveedores-api-core \
-          --project ${_DEPLOY_PROJECT_ID} \
-          --image gcr.io/${_DEPLOY_PROJECT_ID}/marti-api-proveedores-core \
+          --image gcr.io/$PROJECT_ID/portal-proveedores-api-core \
           --platform managed \
           --region us-central1 \
           --no-allow-unauthenticated \
-          --service-account proveedores-portal-cs@${_DEPLOY_PROJECT_ID}.iam.gserviceaccount.com \
+          --service-account portal-proveedores-api-runtime@${_DEPLOY_PROJECT_ID}.iam.gserviceaccount.com \
           --set-env-vars PROVEEDORES_STORAGE_BUCKET=${_PROVEEDORES_STORAGE_BUCKET} \
-          --set-secrets "PROVEEDORES_API_CORE_DB_HOST=PROVEEDORES_API_CORE_DB_HOST:latest,PROVEEDORES_API_CORE_DB_NAME=PROVEEDORES_API_CORE_DB_NAME:latest,PROVEEDORES_API_CORE_DB_PASSWORD=PROVEEDORES_API_CORE_DB_PASSWORD:latest,PROVEEDORES_API_CORE_DB_PORT=PROVEEDORES_API_CORE_DB_PORT:latest,PROVEEDORES_API_CORE_DB_USER=PROVEEDORES_API_CORE_DB_USER:latest,PROVEEDORES_API_CORE_JWT_SECRET_KEY=PROVEEDORES_API_CORE_JWT_SECRET_KEY:latest,PROVEEDORES_API_CORE_PNJ_COLA=PROVEEDORES_API_CORE_PNJ_COLA:latest,PROVEEDORES_API_CORE_LLAVE_CIFRADO=PROVEEDORES_API_CORE_LLAVE_CIFRADO:latest,PROVEEDORES_API_CORE_DATA_PROCESSING_COLA=PROVEEDORES_API_CORE_DATA_PROCESSING_COLA:latest,PROVEEDORES_API_CORE_DATA_REPORTING_COLA=PROVEEDORES_API_CORE_DATA_REPORTING_COLA:latest"
+          --set-secrets "PROVEEDORES_API_CORE_DB_HOST=PROVEEDORES_API_CORE_DB_HOST:latest,PROVEEDORES_API_CORE_DB_NAME=PROVEEDORES_API_CORE_DB_NAME:latest,PROVEEDORES_API_CORE_DB_PASSWORD=PROVEEDORES_API_CORE_DB_PASSWORD:latest,PROVEEDORES_API_CORE_DB_PORT=PROVEEDORES_API_CORE_DB_PORT:latest,PROVEEDORES_API_CORE_DB_USER=PROVEEDORES_API_CORE_DB_USER:latest"
 
 images:
-  - 'us-central1-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/marti-api-proveedores-core/marti-api-proveedores-core'
+  - 'gcr.io/$PROJECT_ID/portal-proveedores-api-core'
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -49,18 +43,8 @@ availableSecrets:
       env: PROVEEDORES_API_CORE_DB_PORT
     - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_USER/versions/latest
       env: PROVEEDORES_API_CORE_DB_USER
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_JWT_SECRET_KEY/versions/latest
-      env: PROVEEDORES_API_CORE_JWT_SECRET_KEY
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_PNJ_COLA/versions/latest
-      env: PROVEEDORES_API_CORE_PNJ_COLA
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_LLAVE_CIFRADO/versions/latest
-      env: PROVEEDORES_API_CORE_LLAVE_CIFRADO
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DATA_PROCESSING_COLA/versions/latest
-      env: PROVEEDORES_API_CORE_DATA_PROCESSING_COLA
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DATA_REPORTING_COLA/versions/latest
-      env: PROVEEDORES_API_CORE_DATA_REPORTING_COLA
 
 substitutions:
-  _DEPLOY_PROJECT_ID: proveedores-491118
-  _SECRETS_PROJECT_ID: proveedores-491118
+  _DEPLOY_PROJECT_ID: marti-deportes-desarrollo
+  _SECRETS_PROJECT_ID: '528869640412'
   _PROVEEDORES_STORAGE_BUCKET: proveedores-documentos-bucket

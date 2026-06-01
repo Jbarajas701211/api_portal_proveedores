@@ -12,7 +12,7 @@ using System.Text;
 using System.Security.Cryptography;
 
 [ApiController]
-[Route("api/usuarios/")]
+[Route("api/usuarios")]
 public class UsuarioController : ControllerBase
 {
     private readonly AuthService _authService;
@@ -24,7 +24,7 @@ public class UsuarioController : ControllerBase
         _usuariosService = usuariosService;
     }
 
-    [Authorize(Roles = "LOGISTICA")]
+    [Authorize(Roles = "ADMIN")]
     [HttpPost("alta_cuenta")]
     public async Task<IActionResult> AltaDeCuenta(AltaCuentaRequest request)
     {
@@ -33,8 +33,8 @@ public class UsuarioController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        await _authService.AltaDeCuenta(request);
-        return Ok(new { message = "Usuario creado correctamente" });
+        var resultado = await _authService.AltaDeCuenta(request);
+        return Ok(resultado);
     }
 
     [Authorize]
@@ -69,12 +69,12 @@ public class UsuarioController : ControllerBase
     }
 
 
-    [Authorize(Roles = "LOGISTICA")]
+    [Authorize(Roles = "ADMIN")]
     [HttpGet("buscar")]
     public async Task<IActionResult> BuscarUsuarios(
         [FromQuery] string? usuario,
         [FromQuery] string? proveedor,
-        [FromQuery] AgrupadorRol agrupador,
+        [FromQuery] AgrupadorRol? agrupador,
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanoPagina = 10)
     {
@@ -83,12 +83,27 @@ public class UsuarioController : ControllerBase
     }
 
 
-    [Authorize(Roles = "LOGISTICA")]
+    [Authorize(Roles = "ADMIN")]
     [HttpPatch("habilitar")]
     public async Task<IActionResult> DesactivarUsuario(HabilitarUsuarioDto dto)
     {
         await _usuariosService.DesactivarUsuarioAsync(dto);
         return Ok();
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost("asociar_empresas")]
+    public async Task<IActionResult> AsociarEmpresaAsync(AsociarEmpresasRequestDto asociarEmpresas)
+    {
+        try
+        {
+            var respuesta = await _usuariosService.AsociarEmpresasAsync(asociarEmpresas);
+            return Ok(respuesta);
+        }
+        catch (ApiProveedoresException appEx)
+        {
+            return BadRequest(appEx.Message);
+        }
     }
 
 }

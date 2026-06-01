@@ -25,11 +25,11 @@ namespace ApiProveedores.Controllers
 
         [Authorize]
         [HttpGet("mias")]
-        public async Task<IActionResult> ObtenerMias()
+        public async Task<IActionResult> ObtenerMias([FromQuery] int pagina = 1, [FromQuery] int tamanioPagina = 10)
         {
             try {
                 var (usuarioId, _) = User.RequireIds();
-                var notificaciones = await _service.ObtenerUltimasNotificacionesPorUsuarioAsync(usuarioId);
+                var notificaciones = await _service.ObtenerUltimasNotificacionesPorUsuarioAsync(pagina, tamanioPagina, usuarioId);
                 return Ok(notificaciones);
             } catch (Exception ex) {
                 return StatusCode(500, new { mensaje = "Error interno al obtener las notificaciones.", detalle = ex.Message });
@@ -121,6 +121,21 @@ namespace ApiProveedores.Controllers
                 : null;
 
             return Ok(new { total = items.Count, items, nextCursor });
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> EliminaNotificacion(long idNotificacion)
+        {
+            try
+            {
+                var respuesta = await _service.EliminarNotificacion(idNotificacion);
+                return Ok(respuesta);
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
         }
 
     }

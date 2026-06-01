@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recuperación de Contraseña - Grupo Martí</title>
+<style type="text/css">
+        /* Client-specific Styles */
+        #outlook a { padding: 0; }
+        .ReadMsgBody { width: 100%; }
+        .ExternalClass { width: 100%; }
+        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        table { border-collapse: collapse !important; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #faf8ff; font-family: 'Manrope', Arial, sans-serif; }
+
+        /* Mobile Styles */
+        @@media screen and (max-width: 600px) {
+            .container { width: 100% !important; }
+            .content-padding { padding: 20px !important; }
+            .code-box { font-size: 32px !important; letter-spacing: 4px !important; }
+        }
+    </style>
+
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/></head>
+<body style="margin: 0; padding: 0; background-color: #faf8ff;">
+<center>
+<table border="0" cellpadding="0" cellspacing="0" style="background-color: #faf8ff;" width="100%">
+<tbody><tr>
+<td align="center" style="padding: 40px 0 40px 0;">
+<!-- Email Container -->
+<table border="0" cellpadding="0" cellspacing="0" class="container" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);" width="600">
+<!-- Header -->
+<tbody><tr>
+<td align="center" bgcolor="#135bec" style="padding: 40px 0 40px 0;">
+<img alt="Grupo Martí Logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRjdJ0c22rlF_9W7aS2Dy-xVQRUxgaixSG2L_mcX0rqrrcmgfinReasd44mLHw6_5XGUK2e3uQN7o1IfgGWlhZ344Z5i-RiOOusvisI3rpaiBuo8qXrQ4G8FCwhxRCrAnkvWTMFLhk5EyebJcOgjqP4la_TBVdwHbaUCzpgCQqUYitPj3nwFCF2IPC5rtdEvTWvbv-QBImeBrnqbL4s1oC_iIVM10rKbpASlMPcH140aP8VV9B43E5D2dZQcyzB4rS4wIJceuJPBoG" style="display: block; border: 0;" width="180"/>
+</td>
+</tr>
+<!-- Body Content -->
+<tr>
+<td class="content-padding" style="padding: 40px 40px 30px 40px;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+<tbody><tr>
+<td style="color: #191b24; font-family: 'Manrope', Arial, sans-serif; font-size: 24px; font-weight: 800; line-height: 32px; padding-bottom: 24px;">
+                                            Recuperación de Contraseña
+                                        </td>
+</tr>
+<tr>
+<td style="color: #434655; font-family: 'Manrope', Arial, sans-serif; font-size: 16px; line-height: 24px; padding-bottom: 20px;">
+                                            Hola <strong>@Model.payload.nombre</strong>,
+                                        </td>
+</tr>
+<tr>
+<td style="color: #434655; font-family: 'Manrope', Arial, sans-serif; font-size: 16px; line-height: 24px; padding-bottom: 32px;">
+                                            Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en el <strong>Portal de Proveedores de Grupo Martí</strong>. Si no realizaste esta solicitud, puedes ignorar este correo de forma segura.
+                                        </td>
+</tr>
+<!-- Code Box -->
+<tr>
+<td align="center" style="padding-bottom: 32px;">
+<table border="0" cellpadding="0" cellspacing="0" style="background-color: #f3f3ff; border-radius: 8px; border: 1px dashed #135bec;" width="100%">
+<tbody><tr>
+<td align="center" style="padding: 24px;">
+<div style="color: #135bec; font-family: 'Manrope', Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2px; margin-bottom: 8px; text-transform: uppercase;">
+                                                            CÓDIGO DE RECUPERACIÓN
+                                                        </div>
+<div class="code-box" style="color: #0045bd; font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: 800; letter-spacing: 8px;">
+                                                            @Model.payload.code
+                                                        </div>
+<div style="color: #737687; font-family: 'Manrope', Arial, sans-serif; font-size: 13px; margin-top: 8px;">
+                                                            Expira en 1 hora
+                                                        </div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<!-- Action Button -->
+<tr>
+<td align="center" style="padding-bottom: 32px;">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate;">
+<tbody><tr>
+<td align="center" bgcolor="#135bec" style="border-radius: 4px;">
+<a href="@Model.payload.url" style="padding: 14px 32px; font-family: 'Manrope', Arial, sans-serif; font-size: 16px; font-weight: 700; color: #ffffff; text-decoration: none; display: inline-block;" target="_blank">Restablecer Contraseña</a>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<!-- Divider -->
+<tr>
+<td style="border-top: 1px solid #e2e8f0; padding-top: 24px;">
+<p style="color: #737687; font-family: 'Manrope', Arial, sans-serif; font-size: 13px; line-height: 18px; margin: 0;">
+                                                Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:
+                                            </p>
+<p style="word-break: break-all; margin: 8px 0 0 0;">
+<a href="@Model.payload.url" style="color: #135bec; font-family: 'Manrope', Arial, sans-serif; font-size: 13px; text-decoration: underline;">@Model.payload.url</a>
+</p>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<!-- Footer -->
+<tr>
+<td bgcolor="#f8fafc" style="padding: 30px 40px; border-top: 1px solid #e2e8f0;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+<tbody><tr>
+<td style="color: #585e6d; font-family: 'Manrope', Arial, sans-serif; font-size: 12px; line-height: 18px; text-align: center;">
+                                            ¿Necesitas ayuda técnica? Contacta a: <a href="mailto:soporte.proveedores@marti.mx" style="color: #135bec; text-decoration: none; font-weight: 600;">soporte.proveedores@marti.mx</a>
+</td>
+</tr>
+<tr>
+<td style="padding-top: 20px; color: #737687; font-family: 'Manrope', Arial, sans-serif; font-size: 11px; line-height: 16px; text-align: center; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            GRUPO MARTÍ © 2026
+                                        </td>
+</tr>
+<tr>
+<td style="padding-top: 12px; text-align: center;">
+<a href="#" style="color: #737687; font-family: 'Manrope', Arial, sans-serif; font-size: 11px; text-decoration: underline; margin: 0 8px;">Aviso de Privacidad</a>
+<span style="color: #c3c5d8;">|</span>
+<a href="#" style="color: #737687; font-family: 'Manrope', Arial, sans-serif; font-size: 11px; text-decoration: underline; margin: 0 8px;">Términos y Condiciones</a>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</center>
+</body></html>

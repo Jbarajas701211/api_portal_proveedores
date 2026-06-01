@@ -1,14 +1,18 @@
 
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using ApiProveedores.Models;
-using System;
-using ApiProveedores.Services.PubSub;
-using ApiProveedores.Helper;
-using ApiProveedores.Services.Exceptions;
-using ApiProveedores.Services.Helper;
 using ApiProveedores.Dto.Http;
 using ApiProveedores.Dto.PubSub;
+using ApiProveedores.Dto.Salida;
+using ApiProveedores.Helper;
+using ApiProveedores.Models;
+using ApiProveedores.Services.Exceptions;
+using ApiProveedores.Services.Helper;
+using ApiProveedores.Services.PubSub;
+using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
 
 public class AuthService
 {
@@ -16,74 +20,145 @@ public class AuthService
     private readonly GoogleKmsHelper _googleKmsHelper;
     private readonly PublisherPnjService _pubSubPublisher;
     private readonly PortalDbContext _context;
+    private readonly ILogger<AuthService> _logger;
     private string _frontUrl;
-    
-    public AuthService(PortalDbContext context, PublisherPnjService pubSubPublisher, 
-        GoogleKmsHelper googleKmsHelper, HelperTraceService helperTraceService)
+
+    public AuthService(PortalDbContext context, PublisherPnjService pubSubPublisher,
+        GoogleKmsHelper googleKmsHelper, HelperTraceService helperTraceService, ILogger<AuthService> logger)
     {
         _context = context;
         _pubSubPublisher = pubSubPublisher;
         _googleKmsHelper = googleKmsHelper;
-        _frontUrl = Environment.GetEnvironmentVariable("PORTAL_CITAS_URL");
+        _frontUrl = Environment.GetEnvironmentVariable("PORTAL_PROVEEDORES_URL");
         _helperTraceService = helperTraceService;
+        _logger = logger;
     }
-    public async Task AltaDeCuenta(AltaCuentaRequest request) {
+    public async Task<ApiResponseDto<bool>> AltaDeCuenta(AltaCuentaRequest request) {
 
-        var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.CorreoElectronico == request.Email);
-        if (user != null)
-            throw new AltaCuentaException();
-
-        var usuarioNuevo = new Usuario();
-        //usuarioNuevo.Rol = request.Rol.ToString();
-        usuarioNuevo.Nombre = request.NombreCompleto.ToUpperInvariant();
-        usuarioNuevo.CorreoElectronico = request.Email.ToLowerInvariant();
-
-        if (request.Rol == RolUsuario.PROVEEDOR)
+        try
         {
-            if (request.ProveedorId == 0)
+            _logger.LogInformation("Iniciando proceso de alta de cuenta para email: {Email}", request.Email);
+            var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.CorreoElectronico == request.Email);
+            if (user != null)
+                return new ApiResponseDto<bool>()
+                {
+                    Message = "El email ya está registrado.",
+                    Success = false,
+                    StatusCode = System.Net.HttpStatusCode.BadRequest,
+                    Data = false
+                };
+
+            if (!string.IsNullOrWhiteSpace(request.RfcProveedor) && request.Rol == RolUsuario.PROVEEDOR)
             {
-                throw new AltaCuentaException("Es necesario indicar el Proveedor para el registro del usuario.");
+                var proveedor = await _context.Proveedores.AnyAsync(p => p.Rfc == request.RfcProveedor);
+                if (request.Rol == RolUsuario.PROVEEDOR && !proveedor)
+                    return new ApiResponseDto<bool>()
+                    {
+                        Message = "El RFC del proveedor no existe en el sistema.",
+                        Success = false,
+                        StatusCode = System.Net.HttpStatusCode.BadRequest,
+                        Data = false
+                    };
+                var userRfc = await _context.Usuarios.AnyAsync(u => u.RfcProveedor == request.RfcProveedor);
+                if (userRfc)
+                {
+                    _logger.LogError("Intento de alta de cuenta con RFC {Rfc} que ya tiene una cuenta asociada.", request.RfcProveedor);
+                    return new ApiResponseDto<bool>()
+                    {
+                        Message = "Ya existe una cuenta asociada al RFC del proveedor.",
+                        Success = false,
+                        StatusCode = System.Net.HttpStatusCode.BadRequest,
+                        Data = false
+                    };
+                }
             }
-            //usuarioNuevo.ProveedorId = request.ProveedorId;
-        }
-        usuarioNuevo.Estatus = false;
+
+            var usuarioNuevo = new Usuario();
+            usuarioNuevo.Nombre = request.Nombre.ToUpperInvariant();
+            usuarioNuevo.ApellidoPaterno = request.ApellidoPaterno;
+            usuarioNuevo.ApellidoMaterno = request.ApellidoMaterno;
+            usuarioNuevo.usuario = request.Usuario;
+            usuarioNuevo.CorreoElectronico = request.Email.ToLowerInvariant();
+            usuarioNuevo.RfcProveedor = request.RfcProveedor;
+            byte[] data = Encoding.UTF8.GetBytes($"{request.Password}");
+            byte[] hash = SHA256.HashData(data);
+            var hex = Convert.ToHexString(hash).ToLowerInvariant();
+            usuarioNuevo.Password = hex;
+            usuarioNuevo.Estatus = false;
 
 
-        // Bloqueo de cuenta
-        var codigoActivacion = CodigoHelper.GenerarCodigoAlfanumerico();
-        //usuarioNuevo.CodigoAutorizacion = codigoActivacion;
-        
+            // Bloqueo de cuenta
+            var codigoActivacion = CodigoHelper.GenerarCodigoAlfanumerico();
 
+            DateTime fechaExpiracion = DateTime.UtcNow.AddHours(2);
+            string estampaTiempo = fechaExpiracion.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            string resultado = $"{request.Email}|{codigoActivacion}|{estampaTiempo}";
+            string sign = await _googleKmsHelper.EncryptAsync(resultado);
+            string url = $"{_frontUrl}/activar_cuenta?sign={Uri.EscapeDataString(sign)}";
 
-        DateTime fechaExpiracion = DateTime.UtcNow.AddHours(2);
-        string estampaTiempo = fechaExpiracion.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        string resultado = $"{request.Email}|{codigoActivacion}|{estampaTiempo}";
-        string sign = await _googleKmsHelper.EncryptAsync(resultado);
-        string url = $"{_frontUrl}/ActivateAccount?sign={Uri.EscapeDataString(sign)}";
-        
-        var mensaje = new MessageWrapper<MessageCuentaNueva>
-        {
-            Payload = new MessageCuentaNueva
+            //var mensaje = new MessageWrapper<MessageCuentaNueva>
+            //{
+            //    Payload = new MessageCuentaNueva
+            //    {
+            //        NombreCompleto = usuarioNuevo.Nombre,
+            //        Email = usuarioNuevo.CorreoElectronico,
+            //        Code = codigoActivacion,
+            //        Url = url
+
+            //    },
+            //    TypeNotification = "cuenta_nueva"
+            //};
+
+            var mensaje = new NotificacionEmail
             {
-                NombreCompleto = usuarioNuevo.Nombre,
-                Email = usuarioNuevo.CorreoElectronico,
-                Code = codigoActivacion,
-                Url = url
+                ClaveAplicativo = "app-portal-proveedores",
+                NombreTemplate = "alta_cuenta",
+                EmailDestino = usuarioNuevo.CorreoElectronico,
+                Data = new
+                {
+                    payload = new
+                    {
+                        nombre = usuarioNuevo.Nombre,
+                        code = codigoActivacion,
+                        to = usuarioNuevo.CorreoElectronico,
+                        url = url
+                    }
+                }
+            };
 
-            },
-            TypeNotification = "cuenta_nueva"
-        };
+            usuarioNuevo.CodigoActivacion = codigoActivacion;
+            var userSaved = _context.Usuarios.Add(usuarioNuevo);
+            await _context.SaveChangesAsync();
+
+            var usuarioRol = new UsuarioRol
+            {
+                IdUsuario = userSaved.Entity.IdUsuario,
+                IdRol = (int)request.Rol
+            };
+            var usuarioRolBd = _context.UsuarioRol.Add(usuarioRol);
+            await _context.SaveChangesAsync();
 
 
-        //usuarioNuevo.CodigoAutorizacion = codigoActivacion;
-        var userSaved = _context.Usuarios.Add(usuarioNuevo);
-        await _context.SaveChangesAsync();
+            // Genera evento de usuario
+            await _helperTraceService.SaveTraceUsuarios(userSaved.Entity.IdUsuario, EventoUsuario.AltaCuenta);
 
+            await _pubSubPublisher.EnviarNotificacionAsync(mensaje);
 
-        // Genera evento de usuario
-        await _helperTraceService.SaveTraceUsuarios(userSaved.Entity.IdUsuario, EventoUsuario.AltaCuenta);
-
-        await _pubSubPublisher.EnviarNotificacionAsync(mensaje);
+            _logger.LogInformation("Proceso de alta de cuenta finalizado exitosamente para email: {Email}", request.Email);
+            return new ApiResponseDto<bool>()
+            {
+                Message = "Cuenta creada exitosamente. Por favor revisa tu correo para activar tu cuenta.",
+                Success = true,
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al intentar crear la cuenta para email: {Email}", request.Email);
+            throw;
+        }
+        
     }
 
 
@@ -102,7 +177,7 @@ public class AuthService
 
         // Bloqueo de cuenta
         var code = CodigoHelper.GenerarCodigoAlfanumerico();
-        //user.CodigoAutorizacion = code;
+        user.CodigoActivacion = code;
         await _context.SaveChangesAsync();
 
 
@@ -172,28 +247,34 @@ public class AuthService
     {
         var usuario = await ValidacionFirma(sing);
 
-        //if (!code.Equals(usuario.CodigoAutorizacion, StringComparison.OrdinalIgnoreCase))
-        //    throw new FirmaCuentaException("Código de autorización inválido.");
+        if (!code.Equals(usuario.CodigoActivacion, StringComparison.OrdinalIgnoreCase))
+            throw new FirmaCuentaException("Código de autorización inválido.");
 
         if (!confirmacionPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
             throw new DesbloqueoCuentaException("Password y confirmación de password son diferentes.");
 
         usuario.Password = PasswordHasher.Hashear(password);
-        //usuario.CodigoAutorizacion = null;
+        usuario.CodigoActivacion = null;
         usuario.Estatus = true;
         //usuario.Habilitado = true;
 
         _context.Usuarios.Update(usuario);
         await _context.SaveChangesAsync();
 
-        var mensaje = new MessageWrapper<MessageCuentaBase>
+        var mensaje = new NotificacionEmail
         {
-            Payload = new MessageCuentaBase
+            ClaveAplicativo = "app-portal-proveedores",
+            NombreTemplate = "cuenta_activada",
+            EmailDestino = usuario.CorreoElectronico,
+            Data = new
             {
-                NombreCompleto = usuario.Nombre,
-                Email = usuario.CorreoElectronico
-            },
-            TypeNotification = "cuenta_confirmada"
+                payload = new
+                {
+                    nombre = usuario.Nombre,
+                    to = usuario.CorreoElectronico,
+                    url = $"{_frontUrl}/login"
+                }
+            }
         };
 
         await _pubSubPublisher.EnviarNotificacionAsync(mensaje);
@@ -225,14 +306,31 @@ public class AuthService
         _context.Usuarios.Update(usuario);
         await _context.SaveChangesAsync();
 
-        var mensaje = new MessageWrapper<MessageCuentaBase>
+        //var mensaje = new MessageWrapper<MessageCuentaBase>
+        //{
+        //    Payload = new MessageCuentaBase
+        //    {
+        //        NombreCompleto = usuario.Nombre,
+        //        Email = usuario.CorreoElectronico 
+        //        //todo: se tiene que anexar la url para login
+        //    },
+        //    TypeNotification = "password_cambiado"
+        //};
+
+        var mensaje = new NotificacionEmail
         {
-            Payload = new MessageCuentaBase
+            ClaveAplicativo = "app-portal-proveedores",
+            NombreTemplate = "password_modificado",
+            EmailDestino = usuario.CorreoElectronico,
+            Data = new
             {
-                NombreCompleto = usuario.Nombre,
-                Email = usuario.CorreoElectronico
-            },
-            TypeNotification = "password_cambiado"
+                payload = new
+                {
+                    nombre = usuario.Nombre,
+                    to = usuario.CorreoElectronico,
+                    url = $"{_frontUrl}/login"
+                }
+            }
         };
 
         await _pubSubPublisher.EnviarNotificacionAsync(mensaje);
@@ -323,6 +421,18 @@ public class AuthService
         Creado,
         Actualizado,
         Eliminado
+    }
+
+    public async Task<bool> LogoutAsync(string token)
+    {
+        var tokenRefresh = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
+        if(tokenRefresh == null)
+            return false;
+
+        tokenRefresh.RevocadoEn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
 }

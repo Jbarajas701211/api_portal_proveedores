@@ -33,10 +33,17 @@ namespace ApiProveedores.Services
             return proveedor;
         }
 
-        public async Task<Proveedor> RecuperaProveedorAsync(string cveProveedor)
+        public async Task<Proveedor> RecuperaProveedorPorIdAsync(int idProveedor)
         {
             var proveedor = await _context.Proveedores
-              .FirstOrDefaultAsync(o => o.Id_proveedor == 1);
+              .FirstOrDefaultAsync(o => o.Id_proveedor == idProveedor);
+            return proveedor;
+        }
+
+        public async Task<Proveedor> RecuperaProveedorPorEmail(string email)
+        {
+            var proveedor = await _context.Proveedores
+              .FirstOrDefaultAsync(o => o.EmailProveedor == email);
             return proveedor;
         }
 
@@ -436,6 +443,23 @@ namespace ApiProveedores.Services
             }
         }
 
+        public async Task<Proveedor> ObtenerProveedorPorRfcAsync(string rfc)
+        {
+            if (string.IsNullOrWhiteSpace(rfc))
+                throw new ApiProveedoresException("RFC inválido.");
+            try
+            {
+                var rfcNorm = rfc.Replace(" ", "").ToUpper();
+                var proveedor = await _context.Proveedores
+                    .FirstOrDefaultAsync(p => p.Rfc != null && p.Rfc.Replace(" ", "").ToUpper() == rfcNorm);
+                return proveedor;
+            }
+            catch (Exception ex)
+            {
+                throw new ApiProveedoresException(ex.Message ?? "Error al obtener información del RFC.");
+            }
+        }
+
 
         public async Task<Dictionary<string, object>> ObtenerInfoProveedorPorRfcAsync(string rfc)
         {
@@ -469,8 +493,8 @@ namespace ApiProveedores.Services
 
                 // Validar si cuenta con Ordenes de compra asociadas, si no tiene, lanzar excepción controlada
                 var tieneOrdenesCompra = await _ordenCompraService.ValidaSiCuentaConOrdenesCompraSinFactura(proveedor.Id_proveedor.ToString());
-                if (!tieneOrdenesCompra)
-                throw new ApiProveedoresException("Esta proveedor no tiene ordenes de compra asociadas");
+                //if (!tieneOrdenesCompra)
+                //throw new ApiProveedoresException("Esta proveedor no tiene ordenes de compra pendientes de factura");
 
                 var nombreProveedor = string.IsNullOrWhiteSpace(proveedor.RazonSocial) ? proveedor.Nombre : proveedor.RazonSocial;
 
@@ -495,7 +519,8 @@ namespace ApiProveedores.Services
                     PorcentajeSobrante= proveedor.PorcentajeSobrante,
                     Faltante = proveedor.Faltante,
                     FaltantePorcentaje = proveedor.PorcentajeFaltante,
-                    AplicarTolerancia = proveedor.AplicarTolerancia
+                    AplicarTolerancia = proveedor.AplicarTolerancia,
+                    Email = proveedor.EmailProveedor
                 };
 
                 return new Dictionary<string, object> { { rfcNorm, payload } };

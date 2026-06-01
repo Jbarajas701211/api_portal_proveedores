@@ -73,7 +73,7 @@ namespace ApiProveedores.Services
                 }
             }
 
-            var envSecret = Environment.GetEnvironmentVariable("CITAS_API_CORE_JWT_SECRET_KEY");
+            var envSecret = Environment.GetEnvironmentVariable("PROVEEDORES_API_CORE_JWT_SECRET_KEY");
             if (string.IsNullOrWhiteSpace(envSecret))
             {
                 envSecret = string.Empty;

@@ -33,7 +33,7 @@ namespace ApiProveedores.Http.Filters
 
             var tokenHandler = new JwtSecurityTokenHandler();
 
-            var envSecret = Environment.GetEnvironmentVariable("CITAS_API_CORE_JWT_SECRET_KEY");
+            var envSecret = Environment.GetEnvironmentVariable("PROVEEDORES_API_CORE_JWT_SECRET_KEY");
             _jwtSettings.SecretKey = envSecret;
 
             var key = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);

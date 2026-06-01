@@ -1,7 +1,9 @@
+using ApiProveedores.Helper;
+using ApiProveedores.Models.Enum;
 using ApiProveedores.Models.Factura;
 using ApiProveedores.Services;
-using ApiProveedores.Services.PubSub;
 using ApiProveedores.Services.Exceptions;
+using ApiProveedores.Services.PubSub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -33,11 +35,11 @@ namespace ApiProveedores.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetFacturasAsync(
-            [FromQuery] int pagina = 1, 
-            [FromQuery] int tamanioPagina = 10, 
-            [FromQuery] DateTime? fechaInicial = null, 
+            [FromQuery] int pagina = 1,
+            [FromQuery] int tamanioPagina = 10,
+            [FromQuery] DateTime? fechaInicial = null,
             [FromQuery] DateTime? fechaFinal = null,
-            [FromQuery] string? estatus = null
+            [FromQuery] EstatusFacturaEnum? estatus = null
             )
         {
             var resultado = await _facturaService.ConsultarFacturasAsync(pagina, tamanioPagina, fechaInicial, fechaFinal, estatus);
@@ -55,7 +57,7 @@ namespace ApiProveedores.Controllers
             [FromQuery] int tamanioPagina = 10,
             [FromQuery] DateTime? fechaInicial = null,
             [FromQuery] DateTime? fechaFinal = null,
-            [FromQuery] string? estatus = null
+            [FromQuery] EstatusFacturaEnum? estatus = null
             )
         {
             var resultado = await _facturaService.ConsultarFacturasConProveedorPaginadoAsync(pagina, tamanioPagina, idProveedor, fechaInicial, fechaFinal, estatus);
@@ -105,6 +107,47 @@ namespace ApiProveedores.Controllers
             }
         }
 
+        [HttpPost("alta_complemento_pago")]
+        public async Task<IActionResult> CapturarComplementoPago(
+            IFormFile xml,
+            IFormFile? pdf,
+            [FromQuery] int idCliente)
+        {
+            try
+            {
+                var response = await _facturaService.ProcesaCargaComplementoPagoAsync(
+                    idCliente,
+                    xml,
+                    pdf);
+                return Ok(response);
+            }
+            catch (ApiProveedoresException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpGet("obtiene_complementos_pago")]
+        public async Task<IActionResult> ObtieneComplementosPago(
+            [FromQuery] int idCliente,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int tamanioPagina = 10,
+            [FromQuery] DateTime? fechaInicial = null,
+            [FromQuery] DateTime? fechaFinal = null,
+            [FromQuery] string? busqueda = null
+            )
+        {
+            try
+            {
+                var response = await _facturaService.ObtieneComplementosPago(pagina, tamanioPagina, fechaInicial, fechaFinal, idCliente, busqueda);
+                return Ok(response);
+            }
+            catch (ApiProveedoresException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+        }
+
         [HttpPost("finalizar_con_nota")]
         public async Task<IActionResult> FinalizarConNota(IFormFile[] files, [FromQuery] long procesoId, string motivo)
         {
@@ -125,7 +168,26 @@ namespace ApiProveedores.Controllers
         {
             try
             {
-                var response = await _facturaService.CargaMasivaFacturasAsync(listadoFacturasExcel, archivoZip, rfcProveedor, emailProveedor);
+                var (usuarioId, _) = User.RequireIds();
+                var response = await _facturaService.CargaMasivaFacturasAsync(listadoFacturasExcel, archivoZip, rfcProveedor, emailProveedor, usuarioId);
+
+                return Ok(response);
+            }
+            catch (ApiProveedoresException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpGet("informacion_dashboard")]
+        public async Task<IActionResult> InformacionDashboard()
+        {
+            try
+            {
+                var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                    ?? User.FindFirst("email")?.Value
+                    ;
+                var response = await _facturaService.ObtenerInformacionDashboardAsync(email);
                 return Ok(response);
             }
             catch (ApiProveedoresException ex)

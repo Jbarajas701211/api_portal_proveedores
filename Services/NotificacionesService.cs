@@ -1,5 +1,6 @@
 using ApiProveedores.Dto.Entrada;
 using ApiProveedores.Dto.Paginadores;
+using ApiProveedores.Dto.Salida;
 using ApiProveedores.Helper;
 using ApiProveedores.Models;
 using ApiProveedores.Services.Exceptions;
@@ -36,11 +37,11 @@ namespace ApiProveedores.Services
             }
             else if (!string.IsNullOrWhiteSpace(rol))
             {
-                //query = query.Where(u => u.Rol == rol);
+                query = query.Where(u => u.UsuarioRoles.FirstOrDefault()!.Rol.Descripcion == rol);
             }
             else if (proveedorId.HasValue)
             {
-                //query = query.Where(u => u.ProveedorId == proveedorId);
+                query = query.Where(u => u.Proveedor != null && u.Proveedor.Id_proveedor == proveedorId);
             }
             else
             {
@@ -131,7 +132,8 @@ namespace ApiProveedores.Services
                 .Where(e => e.UsuarioId == usuarioId);
 
 
-            if (fechaDesde.HasValue && fechaHasta.HasValue) {
+            if (fechaDesde.HasValue && fechaHasta.HasValue)
+            {
 
 
                 var inicioUtc = DateTime.SpecifyKind(fechaDesde.Value.Date, DateTimeKind.Utc);
@@ -283,34 +285,64 @@ namespace ApiProveedores.Services
         }
 
 
-        public async Task<List<NotificacionDto>> ObtenerUltimasNotificacionesPorUsuarioAsync(long usuarioId)
+        public async Task<ResultadoPaginado<NotificacionDto>> ObtenerUltimasNotificacionesPorUsuarioAsync(int pagina, int tamanioPagina, long usuarioId)
         {
             var cacheKey = $"ultimas_notificaciones_usuario_{usuarioId}";
 
-            if (!_cache.TryGetValue(cacheKey, out List<NotificacionDto> notificaciones))
-            {
-                notificaciones = await _context.NotificacionesUsuarios
-                    .Where(e => e.UsuarioId == usuarioId)
-                    .Include(e => e.Notificacion)
-                    .OrderByDescending(e => e.Notificacion.CreadoEn)
-                    .Take(15)
-                    .Select(e => new NotificacionDto
-                    {
-                        Id = e.Notificacion.Id,
-                        Titulo = e.Notificacion.Titulo,
-                        Tag = e.Notificacion.Tag,
-                        Detalle = e.Notificacion.Detalle,
-                        Fecha = e.Notificacion.Fecha,
-                        Hora = e.Notificacion.Hora,
-                        Leida = e.Leida,
-                        LeidaEn = e.LeidaEn
-                    })
-                    .ToListAsync();
+            if (pagina < 1) pagina = 1;
+            if (tamanioPagina < 1) tamanioPagina = 10;
 
-                _cache.Set(cacheKey, notificaciones, TimeSpan.FromMinutes(2));
+            ResultadoPaginado<NotificacionDto> respuesta = null;
+            try
+            {
+                if (_cache.TryGetValue(cacheKey, out List<NotificacionDto> notificaciones))
+                {
+
+                    return new ResultadoPaginado<NotificacionDto>()
+                    {
+                        PaginaActual = pagina,
+                        TotalElementos = notificaciones.Count,
+                        TotalPaginas = (int)Math.Ceiling(notificaciones.Count / (double)tamanioPagina),
+                        Elementos = notificaciones.Skip((pagina - 1) * tamanioPagina).Take(tamanioPagina).ToList()
+                    };
+                }
+
+                var query = _context.NotificacionesUsuarios.Include(e => e.Notificacion).AsQueryable();
+                var totalElementos = await query.CountAsync();
+                var totalPaginas = (int)Math.Ceiling(totalElementos / (double)tamanioPagina);
+
+                notificaciones = await query
+                                       .Skip((pagina - 1) * tamanioPagina)
+                                       .Take(tamanioPagina)
+                                       .Select(e => new NotificacionDto
+                                       {
+                                           Id = e.Notificacion.Id,
+                                           Titulo = e.Notificacion.Titulo,
+                                           Tag = e.Notificacion.Tag,
+                                           Detalle = e.Notificacion.Detalle,
+                                           Fecha = e.Notificacion.Fecha,
+                                           Hora = e.Notificacion.Hora,
+                                           Leida = e.Leida,
+                                           LeidaEn = e.LeidaEn
+                                       }).ToListAsync();
+
+                var cache = _cache.Set(cacheKey, notificaciones, TimeSpan.FromMinutes(2));
+                respuesta = new ResultadoPaginado<NotificacionDto>()
+                {
+                    PaginaActual = pagina,
+                    TotalElementos = totalElementos,
+                    TotalPaginas = totalPaginas,
+                    Elementos = notificaciones
+                };
+
+                return respuesta;
+            }
+            catch (Exception)
+            {
+
+                throw;
             }
 
-            return notificaciones;
         }
 
         public async Task<int> MarcarLeidaAsync(long notificacionId, long usuarioId, CancellationToken ct = default)
@@ -328,5 +360,26 @@ namespace ApiProveedores.Services
             return afectados;
         }
 
+        public async Task<bool> EliminarNotificacion(long id)
+        {
+            try
+            {
+                if (id <= 0)
+                    throw new Exception("Es necesario enviar el id de la notificación");
+
+                    var notificacion = await _context.Notificaciones.FindAsync(id);
+                if (notificacion == null)
+                    return false;
+                _context.Notificaciones.Remove(notificacion);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception(ex.Message);
+            }
+           
+        }
     }
 }

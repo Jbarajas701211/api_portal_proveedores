@@ -28,6 +28,7 @@ namespace ApiProveedores.Models
 
         public ICollection<ProveedorEmpresa> ProveedorEmpresa { get; set; } = new List<ProveedorEmpresa>();
         public ICollection<ProveedorDocumento> ProveedorDocumento { get; set; } = new List<ProveedorDocumento>();
+        public ICollection<Usuario> Usuarios { get; set; }
 
     }
 

@@ -54,7 +54,7 @@ namespace ApiProveedores.Http.Filters
             {
 
                 var user = context.HttpContext.User;
-                var userName = user.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value ?? "an�nimo";
+                var userName = user.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value ?? "anónimo";
                 var nombreCompleto = user.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname")?.Value;
                 var rol = user.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value ?? "SIN ROL";
                 var ruta = context.HttpContext.Request.Path;
@@ -91,7 +91,7 @@ namespace ApiProveedores.Http.Filters
                     context.HttpContext.User.Identity?.Name ?? "an�nimo");
 
                 context.Result = new ObjectResult(new { 
-                    mensaje = "Ocurri� un error interno inesperado.",
+                    mensaje = "Ocurrió un error interno inesperado.",
                 })
                 {
                     StatusCode = 500

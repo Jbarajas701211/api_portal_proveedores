@@ -24,7 +24,7 @@ public class AuthService
         _context = context;
         _pubSubPublisher = pubSubPublisher;
         _googleKmsHelper = googleKmsHelper;
-        _frontUrl = Environment.GetEnvironmentVariable("PORTAL_CITAS_URL");
+        _frontUrl = Environment.GetEnvironmentVariable("PORTAL_PROVEEDORES_URL");
         _helperTraceService = helperTraceService;
     }
     public async Task AltaDeCuenta(AltaCuentaRequest request) {

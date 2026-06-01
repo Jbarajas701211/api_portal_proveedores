@@ -1,10 +1,12 @@
+using ApiProveedores.Models.Enum;
+
 public class FacturaConProveedorDto
 {
     public long IdFactura { get; set; }
     public long IdProveedor { get; set; }
     public string? NombreProveedor { get; set; }
     public string? TipoDeComprobante { get; set; }
-    public string? EstatusFactura { get; set; }
+    public EstatusFacturaEnum? EstatusFactura { get; set; }
     public string? FolioOrigen { get; set; }
     public string? Folio { get; set; }
     public string? Serie { get; set; }

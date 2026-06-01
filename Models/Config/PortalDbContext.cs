@@ -3,6 +3,7 @@ using ApiProveedores.Models;
 using ApiProveedores.Dto.Auth;
 using static Grpc.Core.Metadata;
 using ApiProveedores.Models.Factura;
+using ApiProveedores.Models.ComplementoPago;
 
 public class PortalDbContext : DbContext
 {
@@ -27,6 +28,11 @@ public class PortalDbContext : DbContext
     public DbSet<RecepcionDetalle> RecepcionDetalles => Set<RecepcionDetalle>();
     public DbSet<FacturaRecepcion> FacturasRecepcion => Set<FacturaRecepcion>();
     public DbSet<Factura> Facturas => Set<Factura>();
+    public DbSet<Aviso> Avisos { get; set; }
+
+    public DbSet<PagoCfdi> PagosCfdi => Set<PagoCfdi>();
+    public DbSet<PagoDetalle> PagosDetalle => Set<PagoDetalle>();
+    public DbSet<PagosFacturas> PagosFacturasRelacionadas => Set<PagosFacturas>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +99,14 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.ApellidoMaterno).HasColumnName("apellido_materno");
             entity.Property(e => e.CorreoElectronico).HasColumnName("correo_electronico");
             entity.Property(e => e.Estatus).HasColumnName("estatus");
+            entity.Property(e => e.CodigoActivacion).HasColumnName("codigo_activacion");
+            entity.Property(e => e.RfcProveedor).HasColumnName("rfc_proveedor");
+
+            entity.HasOne(e => e.Proveedor)
+                  .WithMany(p => p.Usuarios)
+                  .HasPrincipalKey(p => p.Rfc)
+                  .HasForeignKey(e => e.RfcProveedor)
+                  .IsRequired(false);
 
 
             // Relación con rol
@@ -146,7 +160,7 @@ public class PortalDbContext : DbContext
                 .HasForeignKey(e => e.IdUsuario)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Empresa)
-                .WithMany()
+                .WithMany(e => e.UsuarioEmpresas)
                 .HasForeignKey(e => e.IdEmpresa)
                 .OnDelete(DeleteBehavior.Cascade);
         });
@@ -279,7 +293,7 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.ProveedorNombre).HasColumnName("proveedor_nombre");
             entity.Property(e => e.ProveedorRfc).HasColumnName("proveedor_rfc");
             entity.Property(e => e.Sociedad).HasColumnName("sociedad");
-            entity. Property(e => e.Subsidiaria).HasColumnName("subsidiaria");
+            entity.Property(e => e.Subsidiaria).HasColumnName("subsidiaria");
 
             entity.HasIndex(e => new { e.ErpOrigen, e.IdExterno })
             .IsUnique()
@@ -365,7 +379,7 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.IdProveedor).HasColumnName("id_proveedor");
             entity.Property(e => e.IdEmpresa).HasColumnName("id_empresa");
             entity.Property(e => e.TipoDeComprobante).HasColumnName("tipo_de_comprobante");
-            entity.Property(e => e.EstatusFactura).HasColumnName("estatus_factura");
+            entity.Property(e => e.EstatusFactura).HasColumnName("estatus_factura").HasConversion<string>();
             entity.Property(e => e.FolioOrigen).HasColumnName("folio_origen");
             entity.Property(e => e.Folio).HasColumnName("folio");
             entity.Property(e => e.Serie).HasColumnName("serie");
@@ -389,11 +403,12 @@ public class PortalDbContext : DbContext
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro");
             entity.Property(e => e.Iva).HasColumnName("iva").HasColumnType("decimal(18,2)");
             entity.Property(e => e.FolioErp).HasColumnName("folio_erp");
+            entity.Property(e => e.RfcProveedor).HasColumnName("rfc_proveedor");
+            entity.Property(e => e.NumeroFacturaRelacionado).HasColumnName("numero_factura_relacionada");
             entity.Property(e => e.FechaContabilizacion).HasColumnName("fecha_contabilizacion");
             entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion");
             entity.Property(e => e.FechaModificacion).HasColumnName("fecha_modificacion");
 
-            // Relación Factura ↔ FacturaRecepcion definida en modelBuilder.Entity<FacturaRecepcion>
         });
 
         modelBuilder.Entity<Factura>()
@@ -401,6 +416,116 @@ public class PortalDbContext : DbContext
             .WithMany()
             .HasForeignKey(f => f.IdProveedor)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Aviso>(entity =>
+        {
+            entity.ToTable("avisos", "portal_proveedores");
+            entity.HasKey(e => e.IdAviso);
+            entity.Property(e => e.IdAviso).HasColumnName("id_aviso");
+            entity.Property(e => e.Categoria).HasColumnName("categoria").HasMaxLength(50);
+            entity.Property(e => e.Mensaje).HasColumnName("mensaje").HasColumnType("text");
+            entity.Property(e => e.Estatus).HasColumnName("estatus");
+            entity.Property(e => e.FechaInicioAviso).HasColumnName("fecha_inicio_aviso");
+            entity.Property(e => e.FechaFinalAviso).HasColumnName("fecha_final_aviso");
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion");
+        });
+
+        modelBuilder.Entity<PagoCfdi>(entity =>
+        {
+            entity.ToTable("pagos_cfdi", "portal_proveedores");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Uuid).HasColumnName("uuid");
+            entity.Property(e => e.Serie).HasColumnName("serie");
+            entity.Property(e => e.Folio).HasColumnName("folio");
+            entity.Property(e => e.Fecha).HasColumnName("fecha");
+            entity.Property(e => e.RfcEmisor).HasColumnName("rfc_emisor");
+            entity.Property(e => e.NombreEmisor).HasColumnName("nombre_emisor");
+            entity.Property(e => e.RfcReceptor).HasColumnName("rfc_receptor");
+            entity.Property(e => e.NombreReceptor).HasColumnName("nombre_receptor");
+            entity.Property(e => e.Total).HasColumnName("total").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.XmlOriginal).HasColumnName("xml_original").HasColumnType("text");
+            entity.Property(e => e.FechaAlta).HasColumnName("fecha_alta");
+        });
+
+        modelBuilder.Entity<PagoDetalle>(entity =>
+        {
+            entity.ToTable("pagos_detalle", "portal_proveedores");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.PagoCfdiId).HasColumnName("pago_cfdi_id");
+            entity.Property(e => e.FechaPago).HasColumnName("fecha_pago");
+            entity.Property(e => e.FormaPago).HasColumnName("forma_pago");
+            entity.Property(e => e.Moneda).HasColumnName("moneda");
+            entity.Property(e => e.TipoCambio).HasColumnName("tipo_cambio").HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Monto).HasColumnName("monto").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.NumeroOperacion).HasColumnName("num_operacion");
+            entity.Property(e => e.BancoOrdenante).HasColumnName("banco_ordenante");
+            entity.Property(e => e.CuentaOrdenante).HasColumnName("cuenta_ordenante");
+            entity.Property(e => e.CuentaBeneficiario).HasColumnName("cuenta_beneficiario");
+        });
+
+        modelBuilder.Entity<PagosFacturas>(entity =>
+        {
+            entity.ToTable("pagos_facturas_relacionadas", "portal_proveedores");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.PagoId).HasColumnName("pago_id");
+            entity.Property(e => e.UuidFactura).HasColumnName("uuid_factura");
+            entity.Property(e => e.Serie).HasColumnName("serie");
+            entity.Property(e => e.Folio).HasColumnName("folio");
+            entity.Property(e => e.NumeroParcialidad).HasColumnName("num_parcialidad");
+            entity.Property(e => e.ImporteSaldoAnterior).HasColumnName("imp_saldo_anterior").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ImportePagado).HasColumnName("imp_pagado").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ImporteSaldoInsoluto).HasColumnName("imp_saldo_insoluto").HasColumnType("decimal(18,2)");
+        });
+
+        modelBuilder.Entity<Notificacion>(entity => {
+            entity.ToTable("notificaciones", "portal_proveedores");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").IsRequired();
+            entity.Property(e => e.Hora).HasColumnName("hora").IsRequired();
+            entity.Property(e => e.Titulo).HasColumnName("titulo").HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Tag).HasColumnName("tag").HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Detalle).HasColumnName("detalle");
+            entity.Property(e => e.CreadoEn).HasColumnName("creado_en").HasColumnType("timestamp without time zone").IsRequired();
+            entity.Property(e => e.MetaData).HasColumnName("meta_data").HasColumnType("json");
+            entity.HasMany(e => e.NotificacionesUsuarios)
+                .WithOne(nu => nu.Notificacion)
+                .HasForeignKey(nu => nu.NotificacionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+        });
+
+        modelBuilder.Entity<NotificacionUsuario>(entity =>
+        {
+            entity.ToTable("notificaciones_usuarios", "portal_proveedores");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.NotificacionId).HasColumnName("notificacion_id");
+            entity.Property(e => e.UsuarioId).HasColumnName("usuario_id");
+            entity.Property(e => e.Leida).HasColumnName("leida").HasDefaultValue(false);
+            entity.Property(e => e.LeidaEn).HasColumnName("leida_en");
+
+            entity.HasIndex(e => new { e.NotificacionId, e.UsuarioId }).IsUnique();
+
+            entity.HasOne(e => e.Notificacion)
+                  .WithMany(n => n.NotificacionesUsuarios)
+                  .HasForeignKey(e => e.NotificacionId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Usuario)
+                    .WithMany(u => u.NotificacionesUsuarios)
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Cascade);
+        });
+
     }
 
 }

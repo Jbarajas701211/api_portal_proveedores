@@ -15,25 +15,17 @@ public class Usuario
     public string ApellidoMaterno { get; set; }
     public string CorreoElectronico { get; set; }
     public bool Estatus { get; set; }
+    public string? CodigoActivacion { get; set; }
+    public string RfcProveedor { get; set; }
+    public Proveedor? Proveedor { get; set; }
 
     public ICollection<UsuarioRol> UsuarioRoles { get; set; } = new List<UsuarioRol>();
-        public ICollection<TraceUsuario> TraceUsuarios { get; set; } = new List<TraceUsuario>();
+    public ICollection<TraceUsuario> TraceUsuarios { get; set; } = new List<TraceUsuario>();
     public ICollection<UsuarioEmpresa> UsuarioEmpresas { get; set; } = new List<UsuarioEmpresa>();
 
     public ICollection<RefreshToken> RefreshTokens { get; set; }
 
-    //public long? ProveedorId { get; set; }
-    //public string Rol { get; set; }
-    //public string CodigoAutorizacion { get; set; }
-    //public int IntentosFallidos { get; set; }
-    //public DateTime? BloqueadoEn { get; set; }
-    //public string Secret2FA { get; set; }
-    //public bool Activo { get; set; }
-    //public bool Habilitado { get; set; }
-    //public ICollection<TraceUsuario> TraceUsuarios { get; set; }
-    //public Proveedor Proveedor { get; set; }
-    //public ICollection<RefreshToken> RefreshTokens { get; set; }
-    //public ICollection<NotificacionUsuario> NotificacionesUsuarios { get; set; } = new List<NotificacionUsuario>();
+    public ICollection<NotificacionUsuario> NotificacionesUsuarios { get; set; } = new List<NotificacionUsuario>();
 
 
 }

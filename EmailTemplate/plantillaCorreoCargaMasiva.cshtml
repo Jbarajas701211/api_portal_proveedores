@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 20px 0 30px 0;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="700" style="border-collapse: collapse; background-color: #ffffff; border: 1px solid #cccccc;">
+                    <!-- Cabecera -->
+                    <tr>
+                        <td align="center" bgcolor="#0046ad" style="padding: 25px 0 25px 0; color: #ffffff; font-size: 24px; font-weight: bold;">
+                            Resultado de Carga Masiva de Facturas
+                        </td>
+                    </tr>
+                    <!-- Cuerpo del mensaje -->
+                    <tr>
+                        <td style="padding: 30px 30px 20px 30px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="color: #333333; font-size: 16px; line-height: 24px;">
+                                        Estimado Proveedor,<br><br>
+                                        Se ha procesado su carga masiva de documentos. A continuación, se detalla el resultado del procesamiento para cada registro:
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 20px 0 0 0;">
+                                        <!-- Tabla de Resultados -->
+                                        <table border="1" cellpadding="10" cellspacing="0" width="100%" style="border-collapse: collapse; font-size: 12px; text-align: left; border-color: #dddddd;">
+                                            <thead>
+                                                <tr bgcolor="#eeeeee">
+                                                    <th style="border: 1px solid #dddddd;">Orden Compra</th>
+                                                    <th style="border: 1px solid #dddddd;">Recepción</th>
+                                                    <th style="border: 1px solid #dddddd;">Identificador</th>
+                                                    <th style="border: 1px solid #dddddd;">Factura</th>
+                                                    <th style="border: 1px solid #dddddd;">Mensaje</th>
+                                                    <th style="border: 1px solid #dddddd;">Procesada</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach(var item in Model.Procesados)
+                                                {
+                                                <tr>
+                                                    <td style="border: 1px solid #dddddd;">@item.OrdenCompra</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Recepcion</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Identificador</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Factura</td>
+                                                    <td style="border: 1px solid #dddddd; color:#28a745;">@item.Mensaje</td>
+                                                    <td style="border: 1px solid #dddddd; text-align: center;">✅ SI</td>
+                                                </tr>
+                                                }
+                                                @foreach(var item in Model.NoProcesados)
+                                                {
+                                                <tr>
+                                                    <td style="border: 1px solid #dddddd;">@item.OrdenCompra</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Recepcion</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Identificador</td>
+                                                    <td style="border: 1px solid #dddddd;">@item.Factura</td>
+                                                    <td style="border: 1px solid #dddddd; color:#dc3545;">@item.Mensaje</td>
+                                                    <td style="border: 1px solid #dddddd; text-align: center;">❌ NO</td>
+                                                </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 25px 0 0 0; color: #666666; font-size: 14px; line-height: 20px;">
+                                        Si tiene dudas sobre los errores marcados, por favor revise sus archivos XML o contacte al área de cuentas por pagar.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Pie de página -->
+                    <tr>
+                        <td bgcolor="#f9f9f9" style="padding: 20px 30px 20px 30px; border-top: 1px solid #eeeeee;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="color: #999999; font-size: 12px; text-align: center;">
+                                        Este es un correo automático, por favor no responda a este mensaje.<br>
+                                        &copy; 2026 Portal de Proveedores | Martí
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

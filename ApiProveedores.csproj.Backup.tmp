@@ -1,0 +1,70 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="EmailTemplate\plantillaCorreoCargaMasiva.cshtml" />
+    <Content Remove="EmailTemplate\PlantillaCuentaAlta.cshtml" />
+    <Content Remove="EmailTemplate\PlantillaRecuperarContrasenia.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="Google.Cloud.Kms.V1" Version="3.24.0" />
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="3.34.0" />
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.14.0" />
+    <PackageReference Include="Google.Cloud.Iam.Credentials.V1" Version="2.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql" Version="10.0.2" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Dto\Mappers\" />
+    <Folder Include="Services\Http\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="EmailTemplate\plantillaCorreoCargaMasiva.cshtml" />
+    <None Include="EmailTemplate\PlantillaRecuperarContrasenia.cshtml" />
+    <None Include="EmailTemplate\PlantillaCuentaAlta.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Marti.Pac.Abstractions">
+      <HintPath>..\..\..\..\Desarrollo PAC\Archivos dll para referencia\Marti.Pac.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Marti.Pac.Core">
+      <HintPath>..\..\..\..\Desarrollo PAC\Archivos dll para referencia\Marti.Pac.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Marti.Pac.Factory">
+      <HintPath>..\..\..\..\Desarrollo PAC\Archivos dll para referencia\Marti.Pac.Factory.dll</HintPath>
+    </Reference>
+    <Reference Include="Marti.Pac.Sw">
+      <HintPath>..\..\..\..\Desarrollo PAC\Archivos dll para referencia\Marti.Pac.Sw.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+	
+  <ItemGroup>
+	  <None Update="EmailTemplate\plantillaCorreoCargaMasiva\\*.html">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+  </ItemGroup>
+</Project>
