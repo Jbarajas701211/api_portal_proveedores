@@ -45,7 +45,7 @@ namespace ApiProveedores.Services
             }
             else
             {
-                throw new NotificationException("Debe especificarse usuarioIds, rol o proveedorId");
+                throw new NotificationException("Debe especificarse usuarioId, rol o proveedorId");
             }
 
             var destinatarios = await query.ToListAsync();
