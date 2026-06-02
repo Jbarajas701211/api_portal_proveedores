@@ -45,6 +45,6 @@ availableSecrets:
       env: PROVEEDORES_API_CORE_DB_USER
 
 substitutions:
-  _DEPLOY_PROJECT_ID: marti-deportes-desarrollo
-  _SECRETS_PROJECT_ID: '528869640412'
+  _DEPLOY_PROJECT_ID: proveedores-491118
+  _SECRETS_PROJECT_ID: proveedores-491118
   _PROVEEDORES_STORAGE_BUCKET: proveedores-documentos-bucket
