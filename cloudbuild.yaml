@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/portal-proveedores-api-core', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/proveedores-491118/portal-proveedores-api-core', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/portal-proveedores-api-core']
+    args: ['push', 'us-central1-docker.pkg.dev/proveedores-491118/portal-proveedores-api-core']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
@@ -20,7 +20,7 @@ steps:
       - '-c'
       - |
         gcloud run deploy proveedores-api-core \
-          --image gcr.io/$PROJECT_ID/portal-proveedores-api-core \
+          --image us-central1-docker.pkg.dev/proveedores-491118/portal-proveedores-api-core \
           --platform managed \
           --region us-central1 \
           --no-allow-unauthenticated \
@@ -29,7 +29,7 @@ steps:
           --set-secrets "PROVEEDORES_API_CORE_DB_HOST=PROVEEDORES_API_CORE_DB_HOST:latest,PROVEEDORES_API_CORE_DB_NAME=PROVEEDORES_API_CORE_DB_NAME:latest,PROVEEDORES_API_CORE_DB_PASSWORD=PROVEEDORES_API_CORE_DB_PASSWORD:latest,PROVEEDORES_API_CORE_DB_PORT=PROVEEDORES_API_CORE_DB_PORT:latest,PROVEEDORES_API_CORE_DB_USER=PROVEEDORES_API_CORE_DB_USER:latest,PROVEEDORES_API_NOTIFICADOR_COLA=PROVEEDORES_API_NOTIFICADOR_COLA:latest,PROVEEDORES_API_CORE_LLAVE_CIFRADO=PROVEEDORES_API_CORE_LLAVE_CIFRADO:latest, PROVEEDORES_API_CORE_JWT_SECRET_KEY=PROVEEDORES_API_CORE_JWT_SECRET_KEY:latest"
 
 images:
-  - 'gcr.io/$PROJECT_ID/portal-proveedores-api-core'
+  - 'gcr.io/proveedores-491118/portal-proveedores-api-core'
 
 options:
   logging: CLOUD_LOGGING_ONLY
