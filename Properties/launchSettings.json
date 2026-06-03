@@ -15,7 +15,7 @@
         "PROVEEDORES_API_CORE_PNJ_COLA": "notificador-service",
         "PROVEEDORES_API_CORE_DATA_PROCESSING_COLA": "proveedores-data-processing-topic",
         "PROVEEDORES_API_CORE_DATA_REPORTING_COLA": "proveedores-reporting-data-topic",
-        "PROVEEDORES_API_CORE_LLAVE_CIFRADO": "projects/marti-deportes-desarrollo/locations/us-central1/keyRings/PORTAL_PROVEEDORES_LLAVERO/cryptoKeys/PROVEEDORES_API_LLAVE_CIFRADO",
+        "PROVEEDORES_API_CORE_LLAVE_CIFRADO": "projects/proveedores-491118/locations/us-central1/keyRings/proveedores-keyring/cryptoKeys/api-cifrado-key",
         "GOOGLE_CLOUD_PROJECT": "marti-deportes-desarrollo",
         "PORTAL_PROVEEDORES_URL": "http://localhost:5173",
         "GOOGLE_APPLICATION_CREDENTIALS": "/Users/APSO/Documents/Marti/Reingenieria portal proveedores/Cuenta de servicio api/portal-proveedores-api-runtime.json",
