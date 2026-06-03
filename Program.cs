@@ -103,14 +103,10 @@ builder.Services.AddMemoryCache();
 
 
 //topicos
-var topicPnj = Environment.GetEnvironmentVariable("PROVEEDORES_API_CORE_PNJ_COLA")
-              ?? throw new Exception("PROVEEDORES_API_CORE_PNJ_COLA no definida");
-var topicResumen = Environment.GetEnvironmentVariable("PROVEEDORES_API_CORE_DATA_PROCESSING_COLA")
-              ?? throw new Exception("PROVEEDORES_API_CORE_DATA_PROCESSING_COLA no definida");
+var topicPnj = Environment.GetEnvironmentVariable("PROVEEDORES_API_CORE_NOTIFICADOR_COLA")
+              ?? throw new Exception("PROVEEDORES_API_CORE_NOTIFICADOR_COLA no definida");
 builder.Services.AddScoped<PublisherPnjService>(_ =>
     new PublisherPnjService(topicPnj));
-builder.Services.AddScoped<PublisherResumenService>(_ =>
-    new PublisherResumenService(topicResumen));
 
 // servicios
 builder.Services.AddScoped<AuthService>();

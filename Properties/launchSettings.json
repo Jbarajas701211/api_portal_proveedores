@@ -12,7 +12,7 @@
         "PROVEEDORES_API_CORE_DB_USER": "sa_desarrollo_logistica",
         "PROVEEDORES_API_CORE_DB_PASSWORD": ".{JZ$*1[=M>A1{3a",
         "PROVEEDORES_API_CORE_JWT_SECRET_KEY": "0c2aA1b3C4d5E6f7G8h9I0j1K2l3M4n5",
-        "PROVEEDORES_API_CORE_PNJ_COLA": "notificador-service",
+        "PROVEEDORES_API_CORE_NOTIFICADOR_COLA": "notificador-service",
         "PROVEEDORES_API_CORE_DATA_PROCESSING_COLA": "proveedores-data-processing-topic",
         "PROVEEDORES_API_CORE_DATA_REPORTING_COLA": "proveedores-reporting-data-topic",
         "PROVEEDORES_API_CORE_LLAVE_CIFRADO": "projects/proveedores-491118/locations/us-central1/keyRings/proveedores-keyring/cryptoKeys/api-cifrado-key",
