@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core/api-image', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core/api-image']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
@@ -19,32 +19,32 @@ steps:
     args:
       - '-c'
       - |
-        gcloud run deploy proveedores-api-core \
-          --image us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core \
+        gcloud run deploy portal-proveedores \
+          --image us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core/api-image \
           --platform managed \
           --region us-central1 \
           --no-allow-unauthenticated \
-          --service-account portal-proveedores-api-runtime@${_DEPLOY_PROJECT_ID}.iam.gserviceaccount.com \
+          --service-account portal-proveedores-api-runtime@$PROJECT_ID.iam.gserviceaccount.com \
           --set-env-vars PROVEEDORES_STORAGE_BUCKET=${_PROVEEDORES_STORAGE_BUCKET} \
           --set-secrets "PROVEEDORES_API_CORE_DB_HOST=PROVEEDORES_API_CORE_DB_HOST:latest,PROVEEDORES_API_CORE_DB_NAME=PROVEEDORES_API_CORE_DB_NAME:latest,PROVEEDORES_API_CORE_DB_PASSWORD=PROVEEDORES_API_CORE_DB_PASSWORD:latest,PROVEEDORES_API_CORE_DB_PORT=PROVEEDORES_API_CORE_DB_PORT:latest,PROVEEDORES_API_CORE_DB_USER=PROVEEDORES_API_CORE_DB_USER:latest,PROVEEDORES_API_NOTIFICADOR_COLA=PROVEEDORES_API_NOTIFICADOR_COLA:latest,PROVEEDORES_API_CORE_LLAVE_CIFRADO=PROVEEDORES_API_CORE_LLAVE_CIFRADO:latest,PROVEEDORES_API_CORE_JWT_SECRET_KEY=PROVEEDORES_API_CORE_JWT_SECRET_KEY:latest"
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core/api-image'
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
 availableSecrets:
   secretManager:
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_HOST/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_CORE_DB_HOST/versions/latest
       env: PROVEEDORES_API_CORE_DB_HOST
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_NAME/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_CORE_DB_NAME/versions/latest
       env: PROVEEDORES_API_CORE_DB_NAME
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_PASSWORD/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_CORE_DB_PASSWORD/versions/latest
       env: PROVEEDORES_API_CORE_DB_PASSWORD
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_PORT/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_CORE_DB_PORT/versions/latest
       env: PROVEEDORES_API_CORE_DB_PORT
-    - versionName: projects/${_SECRETS_PROJECT_ID}/secrets/PROVEEDORES_API_CORE_DB_USER/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_CORE_DB_USER/versions/latest
       env: PROVEEDORES_API_CORE_DB_USER
     - versionName: projects/$PROJECT_ID/secrets/PROVEEDORES_API_NOTIFICADOR_COLA/versions/latest
       env: PROVEEDORES_API_NOTIFICADOR_COLA
