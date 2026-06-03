@@ -216,7 +216,7 @@ namespace ApiProveedores.Services
             catch (Exception ex)
             {
 
-                throw new Exception("Error al asociar empresas al usuario", ex);
+                throw new Exception("Error al asociar empresas al usuario verifique", ex);
             }
         }
 
