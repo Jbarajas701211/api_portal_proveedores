@@ -22,7 +22,7 @@ steps:
           --image us-central1-docker.pkg.dev/$PROJECT_ID/portal-proveedores-api-core/api-image \
           --platform managed \
           --region us-central1 \
-          --no-allow-unauthenticated \
+          --allow-unauthenticated \
           --service-account proveedores-portal-cs@$PROJECT_ID.iam.gserviceaccount.com \
           --set-env-vars PROVEEDORES_STORAGE_BUCKET=${_PROVEEDORES_STORAGE_BUCKET},PROVEEDORES_API_CORE_LLAVE_CIFRADO=projects/proveedores-491118/locations/us-central1/keyRings/proveedores-keyring/cryptoKeys/api-cifrado-key \
           --set-secrets "PROVEEDORES_API_CORE_DB_HOST=PROVEEDORES_API_CORE_DB_HOST:latest,PROVEEDORES_API_CORE_DB_NAME=PROVEEDORES_API_CORE_DB_NAME:latest,PROVEEDORES_API_CORE_DB_PASSWORD=PROVEEDORES_API_CORE_DB_PASSWORD:latest,PROVEEDORES_API_CORE_DB_PORT=PROVEEDORES_API_CORE_DB_PORT:latest,PROVEEDORES_API_CORE_DB_USER=PROVEEDORES_API_CORE_DB_USER:latest,PROVEEDORES_API_CORE_NOTIFICADOR_COLA=PROVEEDORES_API_NOTIFICADOR_COLA:latest,PROVEEDORES_API_CORE_JWT_SECRET_KEY=PROVEEDORES_API_CORE_JWT_SECRET_KEY:latest"
